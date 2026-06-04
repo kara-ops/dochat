@@ -1,13 +1,13 @@
 services:
    db:
-     image: dochat/pgvector
+     image: ankane/pgvector
      container_name: pgvector
      environment:
-       POSTGRES_USER: postgres
-       POSTGRES_PASSWORD: password
-       POSTGRES_DB: dochat
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dochat
      ports:
-       - "5433:5433"
+        - "5433:5432"
 
    redis:
      image: redis:7
