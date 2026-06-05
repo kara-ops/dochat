@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
-from app.rag.app.models.service import User,Document
+from app.rag.app.models.service import Document
+from app.user_service.user_model.model import User
 from fastapi import HTTPException
-from app.rag.app.security.auth import hash_password,verify_password
-from app.rag.app.security.jwt_handler import create_access_token,decode_access_token
+from app.security.auth import hash_password,verify_password
+from app.security.jwt_handler import create_access_token,decode_token,create_refresh_token
+from app.user_service.schema.user_schema import RefreshRequest
 
 
 def create_user(email:str, password:str,db:Session):
@@ -20,6 +22,7 @@ def create_user(email:str, password:str,db:Session):
     db.refresh(user)
     return user
 
+
 def user_login(email:str, password:str, db:Session):
     email_db = db.query(User).filter(User.email==email).first()
     if not email_db:
@@ -28,8 +31,12 @@ def user_login(email:str, password:str, db:Session):
     if not check_pass:
         raise HTTPException(status_code=401,detail="Wrong Credentials")
     
-    token = create_access_token({"sub":str(email_db.id)})
-    return token
+    a_token = create_access_token({"sub":email_db.id,
+                                   "email":email_db.email})
+    r_token  = create_refresh_token({"sub":str(email_db.id),
+                                     "email":str(email_db.email)})
+    return {"access_token":a_token,
+            "refresh_token":r_token}
 
 #get all the docs a user has
 def get_docs(db:Session,user_id:int):
@@ -40,3 +47,14 @@ def get_docs(db:Session,user_id:int):
         return [{"filename":doc.filename,"doc_id":doc.id}
                 for doc in query
             ]
+    
+def refresh_token(token:str):
+    decode = decode_token(token)
+    if decode == {"Token expired"} or decode == {"Invalid token"}:
+        return decode
+    a_token = create_access_token({"sub":decode["sub"],
+                                   "email":decode["email"]})
+    r_token = create_refresh_token({"sub":decode["sub"],
+                                    "email":decode["email"]})
+    return {"access_token":a_token,
+            "refresh_token":r_token}
