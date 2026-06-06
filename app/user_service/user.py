@@ -31,10 +31,12 @@ def user_login(email:str, password:str, db:Session):
     if not check_pass:
         raise HTTPException(status_code=401,detail="Wrong Credentials")
     
-    a_token = create_access_token({"sub":email_db.id,
-                                   "email":email_db.email})
+    a_token = create_access_token({"sub":str(email_db.id),
+                                   "email":str(email_db.email),
+                                   "type":"access"})
     r_token  = create_refresh_token({"sub":str(email_db.id),
-                                     "email":str(email_db.email)})
+                                     "email":str(email_db.email),
+                                     "type":"refresh"})
     return {"access_token":a_token,
             "refresh_token":r_token}
 
@@ -50,11 +52,13 @@ def get_docs(db:Session,user_id:int):
     
 def refresh_token(token:str):
     decode = decode_token(token)
-    if decode == {"Token expired"} or decode == {"Invalid token"}:
-        return decode
+    if decode == decode["type"] != "refresh":
+        raise HTTPException(status_code=401,detail="Invalid token type")
     a_token = create_access_token({"sub":decode["sub"],
-                                   "email":decode["email"]})
+                                   "email":decode["email"],
+                                   "type":"access"})
     r_token = create_refresh_token({"sub":decode["sub"],
-                                    "email":decode["email"]})
+                                    "email":decode["email"],
+                                    "type":"refresh"})
     return {"access_token":a_token,
             "refresh_token":r_token}

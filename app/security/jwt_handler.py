@@ -22,9 +22,9 @@ def decode_token(token:str)->dict:
     try:
         payload = jwt.decode(token,settings.SECRET_KEY,algorithms=settings.ALGORITHM)
     except ExpiredSignatureError:
-        return {"Token expired"}
+        raise HTTPException(status_code=401,detail="Token expired")
 
     except JWTError:
-        return {"Invalid Token"}
+        raise HTTPException(status_code=401,detail="Invalid token")
     return payload
 

@@ -19,7 +19,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.user_service.model import User
+from app.user_service.user_model.model import User,UserAuth
 from app.rag.app.models.service import Document,Chunk
 target_metadata = Base.metadata
 
