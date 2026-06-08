@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic-settings
+sqlalchemy
+psycopg2-binary
+alembic
+redis
+httpx
+python-jose[cryptography]
+python-dotenv
