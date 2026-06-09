@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.rag.app.models.service import Document
-from app.user_service.user_model.model import User
+from app.user_service.user_model.model import User,UserAuth
 from fastapi import HTTPException
 from app.security.auth import hash_password,verify_password
 from app.security.jwt_handler import create_access_token,decode_token,create_refresh_token
@@ -15,19 +15,28 @@ def create_user(email:str, password:str,db:Session):
     hash_pass = hash_password(password)
     user = User(
         email=email,
-        hashed_password=hash_pass
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    user_auth = UserAuth(
+        user_id = user.id,
+        provider = "local",
+        hashed_password = hash_pass
+    )
+    db.add(user_auth)
+    db.commit()
+    db.refresh(user_auth)
+
     return user
 
 
 def user_login(email:str, password:str, db:Session):
     email_db = db.query(User).filter(User.email==email).first()
+    hashed_pass = db.query(UserAuth).filter(UserAuth.user_id==email_db.id)
     if not email_db:
         raise HTTPException(status_code=401,detail="Wrong Credentials")
-    check_pass = verify_password(password,email_db.hashed_password)
+    check_pass = verify_password(password,hashed_pass.hashed_password)
     if not check_pass:
         raise HTTPException(status_code=401,detail="Wrong Credentials")
     
