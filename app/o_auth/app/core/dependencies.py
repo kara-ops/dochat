@@ -1,9 +1,9 @@
 from fastapi import Depends,HTTPException, Header
 from sqlalchemy.orm import Session
-from app.database.postgres import get_db
-from app.core.security import decode_token
-from app.services.token_service import is_blacklisted
-from app.models.user_model import User
+from app.core.database import get_db
+from app.security.jwt_handler import decode_token
+# from app.o_auth.app.services.token_service import is_blacklisted
+from app.user_service.user_model.model import User
 
 def get_current_user(authorization: str = Header(), db:Session = Depends(get_db)):
     if not authorization:
@@ -27,11 +27,11 @@ def get_current_user(authorization: str = Header(), db:Session = Depends(get_db)
             detail = "Invalid token"
         )
     
-    if is_blacklisted(decode["jti"]):
-        raise HTTPException(
-            status_code = 401,
-            detail = "Token revoked"
-        )
+    # if is_blacklisted(decode["jti"]):
+    #     raise HTTPException(
+    #         status_code = 401,
+    #         detail = "Token revoked"
+    #     )
     
     querry = db.query(User).filter(User.id==int(decode["sub"])).first()
     if not querry:

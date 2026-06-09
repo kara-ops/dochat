@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from app.rag.app.core.config import settings
+from app.core.config import settings
 import redis
 
 

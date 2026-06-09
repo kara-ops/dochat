@@ -2,10 +2,10 @@ import pymupdf as pdf
 from app.rag.app.services.chunker import chunk_text
 from app.rag.app.services.embeddings import embed_text
 from app.rag.app.services.storage import save_documents
-from app.rag.app.core.database import get_db
+from app.core.database import get_db
 import os
 from sqlalchemy.orm import Session
-from app.rag.app.core.logger import logger
+from app.core.logger import logger
 
 
 

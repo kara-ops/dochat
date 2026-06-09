@@ -2,7 +2,7 @@ from fastapi import Header, HTTPException,Depends
 from sqlalchemy.orm import Session
 from app.security.jwt_handler import decode_token,oauth2_scheme
 from app.user_service.user_model.model import User
-from app.rag.app.core.database import get_db
+from app.core.database import get_db
 
 
 def get_current_user(token:str=Depends(oauth2_scheme),db:Session=Depends(get_db)):

@@ -1,5 +1,5 @@
 from logging.config import fileConfig
-from app.rag.app.core.database import Base
+from app.core.database import Base
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from pgvector.sqlalchemy import Vector

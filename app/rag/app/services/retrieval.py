@@ -1,5 +1,5 @@
 from app.rag.app.services.embeddings import embed_text
-from app.rag.app.core.database import get_db
+from app.core.database import get_db
 from sqlalchemy  import text
 from fastapi import HTTPException
 

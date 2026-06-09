@@ -1,4 +1,4 @@
-from app.rag.app.core.database import get_redis
+from app.core.database import get_redis
 
 def get_cache(key:str)->str | None:
     redis = get_redis()

@@ -1,5 +1,5 @@
 from sqlalchemy import Integer, Column, String,DateTime, ForeignKey, func, Text
-from app.rag.app.core.database import Base
+from app.core.database import Base
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import relationship
 

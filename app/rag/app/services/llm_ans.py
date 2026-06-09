@@ -1,6 +1,6 @@
 from groq import Groq
 from google.genai import types
-from app.rag.app.core.config import settings
+from app.core.config import settings
 
 
 client = Groq(api_key=settings.GROQ_API_KEY)

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.rag.app.services.retrieval import retrieve_chunks
 from app.rag.app.services.llm_ans import generate_ans
 from app.rag.app.schemas.query_schema import QueryRequest
-from app.rag.app.core.database import get_db
+from app.core.database import get_db
 from app.user_service.user_model.model import User
 from app.security.dependency import get_current_user
 from app.rag.app.models.service import Document
@@ -11,7 +11,7 @@ from app.security.jwt_handler import oauth2_scheme
 from app.rag.app.services.cache_service import get_cache,set_cache
 from app.security.rate_limit import query_limit
 from fastapi.responses import StreamingResponse
-from app.rag.app.core.logger import logger
+from app.core.logger import logger
 import time
 
 router = APIRouter(prefix="/rag")

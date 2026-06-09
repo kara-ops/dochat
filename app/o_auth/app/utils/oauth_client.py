@@ -1,6 +1,6 @@
 from app.core.config import settings
 import httpx
-from app.models.user_model import User
+from app.user_service.user_model.model import User
 
 async def exchange_code_for_token(code:str) -> str:
     async with httpx.AsyncClient() as client:

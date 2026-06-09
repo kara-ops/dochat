@@ -1,6 +1,6 @@
 from jose import jwt, JWTError,ExpiredSignatureError
 from datetime import datetime, timedelta
-from app.rag.app.core.config import settings
+from app.core.config import settings
 from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 

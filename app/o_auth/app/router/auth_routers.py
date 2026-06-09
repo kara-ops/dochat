@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from app.core.config import settings
 from app.core.database import get_db
-from app.utils import oauth_client 
-from app.services import auth_service 
-from app.core import security 
+from app.o_auth.app.utils import oauth_client 
+from app.o_auth.app.services import auth_service 
+from app.security import jwt_handler as security
 from datetime import datetime, timezone
-from app.services import token_service 
-from app.schemas.Oauth_schema import RefreshRequest, TokenResponse, UserPublic
-from app.core.dependencies import get_current_user
+from app.o_auth.app.services import token_service 
+from app.o_auth.app.schemas.Oauth_schema import RefreshRequest, TokenResponse, UserPublic
+from app.o_auth.app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth/google", tags =["auth"])
 
@@ -21,11 +21,11 @@ def google_login(request : Request)->str:
     else:
         ip = request.client.host
 
-    call = token_service.rate_limiter(ip)
-    if not call:
-        raise HTTPException(
-            status_code = 429, detail = "Too many request"
-        )
+    # call = token_service.rate_limiter(ip)
+    # if not call:
+    #     raise HTTPException(
+    #         status_code = 429, detail = "Too many request"
+    #     )
 
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
@@ -51,10 +51,10 @@ async def google_callback(code:str, db:Session = Depends(get_db)):
 
     get_or_create = auth_service.get_or_create_user(db=db,google_user=user_info)
 
-    create_access =security.create_access_token(get_or_create.id)
-    create_refresh = security.create_refresh_token(get_or_create.id)
+    create_access =security.create_access_token({"sub":get_or_create["user"].id})
+    create_refresh = security.create_refresh_token({"sub":get_or_create["user"].id})
 
-    token_service.store_refresh_token(get_or_create.id, create_refresh)
+    # token_service.store_refresh_token(get_or_create.id, create_refresh)
     return TokenResponse(access_token=create_access,refresh_token=create_refresh,token_type="bearer")
 
 

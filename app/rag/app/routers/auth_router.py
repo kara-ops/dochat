@@ -1,6 +1,6 @@
 from app.rag.app.schemas.user_schema import UserRegister,UserLogin,TokenResponse
 from fastapi import APIRouter,Depends
-from app.rag.app.core.database import get_db
+from app.core.database import get_db
 from sqlalchemy.orm import Session
 from app.user_service.user import create_user,user_login,refresh_token
 from app.user_service.user_model.model import User
