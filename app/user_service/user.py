@@ -33,9 +33,17 @@ def create_user(email:str, password:str,db:Session):
 
 def user_login(email:str, password:str, db:Session):
     email_db = db.query(User).filter(User.email==email).first()
-    hashed_pass = db.query(UserAuth).filter(UserAuth.user_id==email_db.id)
     if not email_db:
         raise HTTPException(status_code=401,detail="Wrong Credentials")
+    hashed_pass = db.query(UserAuth).filter(UserAuth.provider == "local",UserAuth.user_id==email_db.id).first()
+    if hashed_pass == None:
+        raise HTTPException(
+            status_code = 400,detail="this account uses Google login"
+        )
+    elif hashed_pass.hashed_password == None:
+        raise HTTPException(
+            status_code = 400, detail="this account users Google login"
+        )
     check_pass = verify_password(password,hashed_pass.hashed_password)
     if not check_pass:
         raise HTTPException(status_code=401,detail="Wrong Credentials")
