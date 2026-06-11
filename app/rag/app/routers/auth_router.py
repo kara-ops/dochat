@@ -16,7 +16,7 @@ router = APIRouter(prefix="/auth")
 def user_create(user:UserRegister,db:Session=Depends(get_db)):
     sign_up  = create_user(user.email,user.password,db)
     token = user_login(user.email,user.password,db)
-    return {"access_token":token,"token_type":"bearer"}
+    return {"access_token":token["access_token"],"refresh_token":token["refresh_token"],"token_type":"bearer"}
 
 @router.post("/sign_in")
 def login(user:UserLogin,req:Request,db:Session=Depends(get_db)):
