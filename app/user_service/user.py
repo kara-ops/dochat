@@ -72,10 +72,8 @@ def refresh_token(token:str):
     if decode == decode["type"] != "refresh":
         raise HTTPException(status_code=401,detail="Invalid token type")
     a_token = create_access_token({"sub":decode["sub"],
-                                   "email":decode["email"],
                                    "type":"access"})
     r_token = create_refresh_token({"sub":decode["sub"],
-                                    "email":decode["email"],
                                     "type":"refresh"})
     return {"access_token":a_token,
             "refresh_token":r_token}

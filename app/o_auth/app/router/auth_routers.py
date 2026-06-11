@@ -51,8 +51,10 @@ async def google_callback(code:str, db:Session = Depends(get_db)):
 
     get_or_create = auth_service.get_or_create_user(db=db,google_user=user_info)
 
-    create_access =security.create_access_token({"sub":get_or_create["user"].id})
-    create_refresh = security.create_refresh_token({"sub":get_or_create["user"].id})
+    create_access =security.create_access_token({"sub":str(get_or_create["user"].id),
+                                                 "type":"access"})
+    create_refresh = security.create_refresh_token({"sub":str(get_or_create["user"].id),
+                                                    "type":"refresh"})
 
     # token_service.store_refresh_token(get_or_create.id, create_refresh)
     return TokenResponse(access_token=create_access,refresh_token=create_refresh,token_type="bearer")
