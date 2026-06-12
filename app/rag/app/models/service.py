@@ -8,10 +8,12 @@ class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer,primary_key=True,index=True)
     user_id = Column(Integer,ForeignKey("users.id"),nullable=False,index=True)
+    workspace_id = Column(Integer,ForeignKey("workspaces.id"),nullable=False)
     filename = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     
+    workspace = relationship("WorkSpace",back_populates="document")
     user = relationship("User", back_populates="documents")
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete")
 

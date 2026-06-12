@@ -10,7 +10,8 @@ class User(Base):
     created_at = Column(DateTime,server_default=func.now())
     is_active = Column(Boolean,default=True)
     avatar_url = Column(String,nullable=True)
-
+    
+    workspace = relationship("WorkSpace",back_populates="user",cascade="all, delete")
     user_auth = relationship("UserAuth",back_populates="user",cascade="all, delete")
     documents = relationship("Document", back_populates="user", cascade="all, delete")
 class UserAuth(Base):

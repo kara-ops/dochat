@@ -21,6 +21,7 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from app.user_service.user_model.model import User,UserAuth
 from app.rag.app.models.service import Document,Chunk
+from app.workspace_service.model import WorkSpace
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
