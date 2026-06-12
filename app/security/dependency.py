@@ -15,6 +15,10 @@ def get_current_user(token:str=Depends(oauth2_scheme),db:Session=Depends(get_db)
         raise HTTPException(
             status_code=401,detail="Invalid token"
         )
+    if decode["type"] != "access":
+        raise HTTPException(
+            status_code=400,detail="Invalid token"
+        )
     
     query = db.query(User).filter(User.id==int(decode["sub"])).first()
     if not query:
