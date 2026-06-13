@@ -14,6 +14,19 @@ def create_workspace(name:str,user_id:int,db:Session):
 
 def get_wk(db:Session,user_id:int):
     get = db.query(WorkSpace).filter(WorkSpace.owner_id==user_id).all()
-    if not get:
-        raise HTTPException(status_code=404,detail="no workspace found")
     return get
+
+def delete_wk(db:Session,wk_id:int,user_id:int):
+    get = db.query(WorkSpace).filter(WorkSpace.id==wk_id).first()
+
+    if not get:
+        raise HTTPException(status_code=404,detail="Workspace not found")
+    
+    if user_id != get.owner_id:
+        raise HTTPException(
+            status_code=403,detail="you are not owner of this workspace"
+        )
+    db.delete(get)
+    db.commit()
+    
+    return {wk_id:"deleted"}
