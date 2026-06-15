@@ -14,7 +14,8 @@ class User(Base):
     workspace = relationship("WorkSpace",back_populates="user",cascade="all, delete")
     user_auth = relationship("UserAuth",back_populates="user",cascade="all, delete")
     documents = relationship("Document", back_populates="user", cascade="all, delete")
-    wk_member = relationship("User",back_populates="user")
+    wk_member = relationship("WorkSpaceMember",back_populates="user")
+
 class UserAuth(Base):
     __tablename__ = "user_auth"
     id = Column(Integer,primary_key=True)

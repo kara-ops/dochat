@@ -11,7 +11,7 @@ class WorkSpace(Base):
 
     user = relationship("User",back_populates="workspace")
     document = relationship("Document",back_populates="workspace",cascade="all, delete")
-    wk_member = relationship("WorkSpace",back_populates="wk_id",cascade="all, delete")
+    wk_member = relationship("WorkSpaceMember",back_populates="wk_id",cascade="all, delete")
 
 class WorkSpaceMember(Base):
     __tablename__ = "workspacemembers"
@@ -24,6 +24,6 @@ class WorkSpaceMember(Base):
     __table_args__ = (
         UniqueConstraint("workspace_id", "user_id", name="uq_workspace_id_user_id"),
     ) 
-    wk_id = relationship("WorkSpaceMember",back_populates="wk_member")
-    user = relationship("WorkSpaceMember",back_populates="wk_member")
+    wk_id = relationship("WorkSpace",back_populates="wk_member")
+    user = relationship("User",back_populates="wk_member")
 
