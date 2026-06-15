@@ -18,7 +18,7 @@ class WorkSpaceMember(Base):
     id = Column(Integer,primary_key=True)
     workspace_id = Column(Integer,ForeignKey("workspaces.id"),nullable=False)
     user_id = Column(Integer,ForeignKey("users.id"),nullable=False)
-    role = Column(String,nullable=False)#owner, admin, member, viewer
+    role = Column(String,nullable=False)#owner-4, admin-3, member-2, viewer-1
     created_at = Column(DateTime,server_default=func.now())
 
     __table_args__ = (
