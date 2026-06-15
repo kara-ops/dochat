@@ -1,20 +1,21 @@
-"""feat: oauth database, user, document, chunks model
+"""feat: all tables created
 
-Revision ID: a9b364fc6296
+Revision ID: 38927cc57449
 Revises: 
-Create Date: 2026-06-07 00:12:09.138200
+Create Date: 2026-06-15 20:42:43.457026
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import pgvector
-from pgvector.sqlalchemy  import Vector
+import pgvector 
+from pgvector.sqlalchemy import Vector
+
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a9b364fc6296'
+revision: str = '38927cc57449'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,17 +34,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
     )
-    op.create_table('documents',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('filename', sa.String(), nullable=False),
-    sa.Column('content', sa.Text(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_documents_id'), 'documents', ['id'], unique=False)
-    op.create_index(op.f('ix_documents_user_id'), 'documents', ['user_id'], unique=False)
     op.create_table('user_auth',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -54,6 +44,38 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('provider', 'provider_id', name='uq_provider_provider_id')
+    )
+    op.create_table('workspaces',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('owner_id', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('documents',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('workspace_id', sa.Integer(), nullable=False),
+    sa.Column('filename', sa.String(), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_documents_id'), 'documents', ['id'], unique=False)
+    op.create_index(op.f('ix_documents_user_id'), 'documents', ['user_id'], unique=False)
+    op.create_table('workspacemembers',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('workspace_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('role', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('workspace_id', 'user_id', name='uq_workspace_id_user_id')
     )
     op.create_table('chunks',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -76,9 +98,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_chunks_id'), table_name='chunks')
     op.drop_index(op.f('ix_chunks_document_id'), table_name='chunks')
     op.drop_table('chunks')
-    op.drop_table('user_auth')
+    op.drop_table('workspacemembers')
     op.drop_index(op.f('ix_documents_user_id'), table_name='documents')
     op.drop_index(op.f('ix_documents_id'), table_name='documents')
     op.drop_table('documents')
+    op.drop_table('workspaces')
+    op.drop_table('user_auth')
     op.drop_table('users')
     # ### end Alembic commands ###

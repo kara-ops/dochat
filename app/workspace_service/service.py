@@ -1,6 +1,7 @@
 from app.workspace_service.model import WorkSpace
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from app.workspace_service.model import WorkSpaceMember
 
 def create_workspace(name:str,user_id:int,db:Session):
     create = WorkSpace(
@@ -8,9 +9,16 @@ def create_workspace(name:str,user_id:int,db:Session):
         name = name
     )
     db.add(create)
+    db.flush()
+    create_wk_mem = WorkSpaceMember(
+        workspace_id = create.id,
+        user_id = user_id,
+        role = "owner"
+    )
+    db.add(create_wk_mem)
     db.commit()
-    db.refresh(create)
-    return create
+    db.refresh(create_wk_mem)
+    return [create,create_wk_mem]
 
 def get_wk(db:Session,user_id:int):
     get = db.query(WorkSpace).filter(WorkSpace.owner_id==user_id).all()
