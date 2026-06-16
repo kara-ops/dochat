@@ -1,7 +1,8 @@
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 from app.workspace_service.schema import WorkSpace_Create
-from app.security.dependency import get_current_user
+from app.workspace_service.model import WorkSpaceMember
+from app.security.dependency import get_current_user,require_role
 from app.user_service.user_model.model import User
 from app.workspace_service.service import create_workspace,get_wk,delete_wk
 from app.core.database import get_db
@@ -17,9 +18,9 @@ def get_wks(db:Session=Depends(get_db),user:dict=Depends(get_current_user)):
     get = get_wk(db,user.id)
     return get
 
-@router.delete("/workspace/{id}")
-def del_wk(id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user)):
-    get = delete_wk(db,id,user.id)
+@router.delete("/workspace/{wk_id}")
+def del_wk(wk_id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
+    get = delete_wk(db,wk_id,user.id)
     return get
     
 

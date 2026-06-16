@@ -19,7 +19,7 @@ def create_workspace(name:str,user_id:int,db:Session):
     db.add(create_wk_mem)
     db.commit()
     db.refresh(create_wk_mem)
-    return [WorkSpaceRespond.model_validate(create),WorkSpaceMemberRespond.model_validate(create_wk_mem)]
+    return [WorkSpaceRespond.model_validate(create)]
 
 def get_wk(db:Session,user_id:int):
     get = db.query(WorkSpace).filter(WorkSpace.owner_id==user_id).all()
@@ -39,3 +39,4 @@ def delete_wk(db:Session,wk_id:int,user_id:int):
     db.commit()
     
     return {wk_id:"deleted"}
+

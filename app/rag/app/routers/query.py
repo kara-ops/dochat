@@ -5,7 +5,8 @@ from app.rag.app.services.llm_ans import generate_ans
 from app.rag.app.schemas.query_schema import QueryRequest
 from app.core.database import get_db
 from app.user_service.user_model.model import User
-from app.security.dependency import get_current_user
+from app.workspace_service.model import WorkSpaceMember
+from app.security.dependency import get_current_user,require_role
 from app.rag.app.models.service import Document
 from app.security.jwt_handler import oauth2_scheme
 from app.rag.app.services.cache_service import get_cache,set_cache
@@ -17,7 +18,7 @@ import time
 router = APIRouter(prefix="/rag")
 
 @router.post("/query")
-def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user),wk:WorkSpaceMember=Depends(require_role("member"))):
     start = time.time()
 
     x_forwarded_for = request.headers.get("x-forwarded-for")
