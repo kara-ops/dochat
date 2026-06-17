@@ -1,6 +1,7 @@
 from app.workspace_service.model import WorkSpace
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from app.user_service.user_model.model import User
 from app.workspace_service.model import WorkSpaceMember
 from app.workspace_service.schema import WorkSpaceRespond,WorkSpaceMemberRespond
 
@@ -40,3 +41,29 @@ def delete_wk(db:Session,wk_id:int,user_id:int):
     
     return {wk_id:"deleted"}
 
+def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will be fixed
+
+    #check wk exists
+    get_wk = db.query(WorkSpace).filter(WorkSpace.id==wk_id).first()
+    if not get_wk:
+        raise HTTPException(status_code=404,detail="WorkSpace not found")
+    
+    #check user exist
+    get_user = db.query(User).filter(User.email==email).first()
+    if not get_user:
+        raise HTTPException(status_code=404,detail="User not found")
+    
+    #if user already in wk check
+    get = db.query(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==get_user.id).first()
+    if get:
+        raise HTTPException(status_code=400,detail="User is already in the workspace")
+    create = WorkSpaceMember(
+        workspace_id=wk_id,
+        user_id=get_user.id,
+        role=role
+    )
+    db.add(create)
+    db.commit()
+    db.refresh(create)
+    return create
+    

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from enum import Enum
 
 class WorkSpace_Create(BaseModel):
     name:str
@@ -18,3 +19,12 @@ class WorkSpaceMemberRespond(BaseModel):
     role:str
     created_at:datetime
     model_config = {"from_attributes": True}
+
+class WorkSpaceMemberRole(str,Enum):
+    ADMIN="admin"
+    MEMBER="member"
+    VIEWER="viewer"
+
+class WorkSpaceMemberRequest(BaseModel):
+    email:str
+    role:WorkSpaceMemberRole
