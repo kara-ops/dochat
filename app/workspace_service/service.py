@@ -67,7 +67,11 @@ def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will be fix
     db.refresh(create)
     return create
     
+
+roles = ["member","admin","viewer"]
 def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
+    if role not in roles:
+        raise HTTPException(status_code=400,detail="You can promote/demote only to these roles: ['member', 'admin', 'viewer']")
     get = db.query(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user_id).first()
     if not get:
         raise HTTPException(status_code=404,detail="user/workspace not found")
