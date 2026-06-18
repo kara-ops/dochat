@@ -67,3 +67,12 @@ def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will be fix
     db.refresh(create)
     return create
     
+def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
+    get = db.query(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user_id).first()
+    if not get:
+        raise HTTPException(status_code=404,detail="user/workspace not found")
+    get.role = role
+    db.add(get)
+    db.commit()
+    db.refresh(get)
+    return get

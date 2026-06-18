@@ -1,4 +1,5 @@
 import pymupdf as pdf
+import docx 
 from app.rag.app.services.chunker import chunk_text
 from app.rag.app.services.embeddings import embed_text
 from app.rag.app.services.storage import save_documents
@@ -12,6 +13,7 @@ from app.core.logger import logger
 
 def ingest_pdf(file_path:str,db:Session,user_id):
     #vars
+    file_type = ["pdf","docx","txt"]
     file_name = os.path.basename(file_path)
     doc = pdf.open(file_path)
     text = ""
