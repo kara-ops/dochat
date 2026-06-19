@@ -1,8 +1,9 @@
 from app.rag.app.models.service import Document,Chunk
 
-def save_documents(filename:str,content:str,chunks:list[str],vector:list[list[float]],db,user)->dict:
+def save_documents(wk_id:int,filename:str,content:str,chunks:list[str],vector:list[list[float]],db,user)->dict:
     save_docs = Document(
         filename=filename,
+        workspace_id = wk_id,
         content=content,
         user_id=user
     )

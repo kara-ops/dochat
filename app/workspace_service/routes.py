@@ -29,7 +29,7 @@ def invite_in_wk(req:WorkSpaceMemberRequest,wk_id:int,db:Session=Depends(get_db)
     create = invite_user(db,req.email,wk_id,req.role)
     return create
 
-@router.post("/workspace/{wk_id}/{user_id}/role/{role}")
+@router.patch("/workspace/{wk_id}/{user_id}/role/{role}")
 def p_d(role:str,wk_id:int,user_id:int,db:Session=Depends(get_db),user:User=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
     if user_id == user.id:
         raise HTTPException(status_code=400,detail="You cant demote/promote yourself")
