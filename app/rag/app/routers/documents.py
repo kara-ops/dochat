@@ -27,7 +27,7 @@ async def upload_docs(wk_id:int,file: UploadFile,req:Request,db:Session=Depends(
 #fetch user ip
     x_forwarded_for = req.headers.get("x-forwarded-for")
     if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0]
+        ip = x_forwarded_for[0].strip()
     else:
         ip = req.client.host
     upload_limit(ip)
