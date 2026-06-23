@@ -49,6 +49,11 @@ def rrf_merge(vector_res, bm25_res, k=60, top_n=5):
     final = [{"id": chunk_final[0], "content": chunk_final[1]["content"]}for chunk_final in sorting]
     return final
 
+def hybrid_search(db:Session,wk_id:int,question:str):
+    vector_s = retrieve_chunks(wk_id,question,db)
+    bm25_s = search_bm25(wk_id,db,question)
+    return rrf_merge(vector_s,bm25_s)
+
         
     
     
