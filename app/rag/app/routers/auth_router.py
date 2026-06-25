@@ -10,7 +10,6 @@ from app.user_service.schema.user_schema import RefreshRequest
 
 
 router = APIRouter(prefix="/auth")
-oauth_router = APIRouter(prefix="/oauth")
 
 @router.post("/sign_up")
 def user_create(user:UserRegister,db:Session=Depends(get_db)):
@@ -18,7 +17,6 @@ def user_create(user:UserRegister,db:Session=Depends(get_db)):
     token = user_login(user.email,user.password,db)
     return {"access_token":token["access_token"],"refresh_token":token["refresh_token"],"token_type":"bearer"}
 
-@oauth_router.post("/login")
 @router.post("/sign_in")
 def login(user:UserLogin,req:Request,db:Session=Depends(get_db)):
     x_forwarded_for = req.headers.get("x-forwarded-for")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,UploadFile,Request
+from fastapi import APIRouter, Depends, UploadFile, Request, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 import os
@@ -23,8 +23,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 router = APIRouter(prefix="/rag")
 
 @router.post("/workspaces/{wk_id}/documents/upload")
-async def upload_docs(wk_id:int,file: UploadFile,req:Request,db:Session=Depends(get_db),current_user: User =Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("member"))):
-#fetch user ip
+async def upload_docs(wk_id:int, file: UploadFile = File(...), req:Request = None, db:Session=Depends(get_db), current_user: User = Depends(get_current_user), mem:WorkSpaceMember=Depends(require_role("member"))):
+    # fetch user ip
     x_forwarded_for = req.headers.get("x-forwarded-for")
     if x_forwarded_for:
         ip = x_forwarded_for[0].strip()

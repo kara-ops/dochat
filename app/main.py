@@ -1,6 +1,6 @@
 from app.rag.app.routers.documents import  router as upload_route
 from app.rag.app.routers.query import router as query_route
-from app.rag.app.routers.auth_router import router as user_router, oauth_router as oauth_alias_router
+from app.rag.app.routers.auth_router import router as user_router
 from app.o_auth.app.router.auth_routers import router as oauth_router
 from app.workspace_service.routes import router as workspace_router
 from fastapi import FastAPI,Request
@@ -15,8 +15,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
@@ -43,5 +45,4 @@ app.include_router(upload_route)
 app.include_router(query_route)
 app.include_router(user_router)
 app.include_router(oauth_router)
-app.include_router(oauth_alias_router)
 app.include_router(workspace_router)

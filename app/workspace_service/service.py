@@ -23,8 +23,26 @@ def create_workspace(name:str,user_id:int,db:Session):
     return [WorkSpaceRespond.model_validate(create)]
 
 def get_wk(db:Session,user_id:int):
-    get = db.query(WorkSpace).filter(WorkSpace.owner_id==user_id).all()
-    return get
+    rows = db.query(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all()
+    result = []
+    for workspace in rows:
+        result.append({
+            "id": workspace.id,
+            "name": workspace.name,
+            "owner_id": workspace.owner_id,
+            "created_at": workspace.created_at,
+            "members": [
+                {
+                    "id": member.id,
+                    "workspace_id": member.workspace_id,
+                    "user_id": member.user_id,
+                    "role": member.role,
+                    "created_at": member.created_at,
+                }
+                for member in workspace.wk_member
+            ],
+        })
+    return result
 
 def delete_wk(db:Session,wk_id:int,user_id:int):
     get = db.query(WorkSpace).filter(WorkSpace.id==wk_id).first()
