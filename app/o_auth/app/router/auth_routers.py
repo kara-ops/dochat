@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
+from urllib.parse import urlencode
 from app.core.config import settings
 from app.core.database import get_db
 from app.o_auth.app.utils import oauth_client 
@@ -56,8 +57,12 @@ async def google_callback(code:str, db:Session = Depends(get_db)):
     create_refresh = security.create_refresh_token({"sub":str(get_or_create["user"].id),
                                                     "type":"refresh"})
 
-    # token_service.store_refresh_token(get_or_create.id, create_refresh)
-    return TokenResponse(access_token=create_access,refresh_token=create_refresh,token_type="bearer")
+    params = urlencode({
+        "access_token": create_access,
+        "token_type": "bearer",
+    })
+    frontend_url = f"http://localhost:5173/?{params}"
+    return RedirectResponse(frontend_url)
 
 
 

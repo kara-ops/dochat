@@ -6,7 +6,7 @@ import shutil
 from app.rag.app.services.ingestion import ingest_pdf
 from app.security.dependency import get_current_user,require_role
 from app.user_service.user_model.model import User
-from workspace_service.model import WorkSpaceMember
+from app.workspace_service.model import WorkSpaceMember
 from app.security.rate_limit import upload_limit
 from app.rag.app.tasks.ingesion_task import ingest_doc_task
 from app.rag.celery_app import celery_app

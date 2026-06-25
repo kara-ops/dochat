@@ -5,17 +5,21 @@ from app.core.config import settings
 
 client = Groq(api_key=settings.GROQ_API_KEY)
 def generate_ans(ques:str,chunks:list[str]):
-    prompt_str = f"""You are a helpful assistant. Answer the question using ONLY the context provided below.
-            If the answer is not in the context, say "I cannot find this in the provided document."
-            Do not use any outside knowledge.
+    formated = formatted = "\n\n".join(
+    f"[{i+1}] {c['filename']} (chunk {c['chunk_index']}):\n{c['content']}"
+    for i, c in enumerate(chunks)
+)
 
-            Context:
-            {"".join(chunks)}
+    prompt_str = f"""Answer using ONLY the sources below. Cite sources as [1], [2] etc.
+                If the answer isn't in the sources, say "Not found in documents."
 
-           Question:
-           {ques}
+                Sources:
+                {formatted}
 
-            Answer:"""
+                Question: {ques}
+
+                Reply in JSON:
+                {{"answer": "<your answer with inline citations>", "sources": ["filename, chunk X", few starting words of chunk]}}"""          
     
     # result="creater of this rag is broke, he cant afford a ai"
     result = client.chat.completions.create(
