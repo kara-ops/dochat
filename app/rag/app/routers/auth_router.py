@@ -5,17 +5,25 @@ from sqlalchemy.orm import Session
 from app.user_service.user import create_user,user_login,refresh_token
 from app.user_service.user_model.model import User
 from app.security.rate_limit import login_limit
-from fastapi import Request
+from fastapi import Request,Response
 from app.user_service.schema.user_schema import RefreshRequest
 
 
 router = APIRouter(prefix="/auth")
 
 @router.post("/sign_up")
-def user_create(user:UserRegister,db:Session=Depends(get_db)):
+def user_create(response:Response,user:UserRegister,db:Session=Depends(get_db)):
     sign_up  = create_user(user.email,user.password,db)
     token = user_login(user.email,user.password,db)
-    return {"access_token":token["access_token"],"refresh_token":token["refresh_token"],"token_type":"bearer"}
+    response.set_cookie(
+        key="refresh_token",
+        value=token["refresh_token"],
+        httponly=True,
+        secure=True,
+        samesite='lax',
+        max_age=60*60*24*7
+    )
+    return {"access_token":token["access_token"],"token_type":"bearer"}
 
 @router.post("/sign_in")
 def login(user:UserLogin,req:Request,db:Session=Depends(get_db)):
