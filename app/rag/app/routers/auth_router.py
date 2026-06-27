@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.user_service.user import create_user,user_login,refresh_token
 from app.user_service.user_model.model import User
 from app.security.rate_limit import login_limit
-from fastapi import Request,Response
+from fastapi import Request,Response,HTTPException
 from app.user_service.schema.user_schema import RefreshRequest
 
 
@@ -26,7 +26,7 @@ def user_create(response:Response,user:UserRegister,db:Session=Depends(get_db)):
     return {"access_token":token["access_token"],"token_type":"bearer"}
 
 @router.post("/sign_in")
-def login(user:UserLogin,req:Request,db:Session=Depends(get_db)):
+def login(response:Response,user:UserLogin,req:Request,db:Session=Depends(get_db)):
     x_forwarded_for = req.headers.get("x-forwarded-for")
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
@@ -34,11 +34,35 @@ def login(user:UserLogin,req:Request,db:Session=Depends(get_db)):
         ip = req.client.host
     login_limit(ip)
     sign_in = user_login(user.email,user.password,db)
-    return {"access_token":sign_in["access_token"],"refresh_token":sign_in["refresh_token"],"token_type":"bearer"}
+    response.set_cookie(
+        key="refresh_token",
+        max_age=60*60*24*7,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+        value=sign_in["refresh_token"])
+    return {"access_token":sign_in["access_token"],"token_type":"bearer"}
 
 @router.post("/refresh")
-def refresh_logic(request:RefreshRequest):
-    return refresh_token(request.refresh_token)
+def refresh_logic(request:Request,res:Response):
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401,detail="Token not found")
+    get_token = refresh_token(token)
+    res.set_cookie(
+        key="refresh_token",
+        value=get_token["refresh_token"],
+        max_age=60*60*24*7,
+        samesite="lax",
+        secure=True,
+        httponly=True
+    )
+    return {"access_token":get_token["access_token"],"token_type":"bearer"}
+
+@router.post
+def logout(res:Response):
+    res.delete_cookie(key="refresh_token")
+    return {"loged_out"}
 
 
 
