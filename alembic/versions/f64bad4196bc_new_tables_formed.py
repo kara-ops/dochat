@@ -1,8 +1,8 @@
-"""feat: all tables created
+"""new tables formed
 
-Revision ID: 38927cc57449
+Revision ID: f64bad4196bc
 Revises: 
-Create Date: 2026-06-15 20:42:43.457026
+Create Date: 2026-08-08 17:43:33.505855
 
 """
 from typing import Sequence, Union
@@ -15,7 +15,7 @@ from pgvector.sqlalchemy import Vector
 
 
 # revision identifiers, used by Alembic.
-revision: str = '38927cc57449'
+revision: str = 'f64bad4196bc'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -45,6 +45,27 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('provider', 'provider_id', name='uq_provider_provider_id')
     )
+    op.create_table('user_session',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('session_id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('r_token_hash', sa.String(length=64), nullable=False),
+    sa.Column('revoked_at', sa.DateTime(), nullable=True),
+    sa.Column('device_type', sa.String(), nullable=True),
+    sa.Column('device_name', sa.String(), nullable=True),
+    sa.Column('browser', sa.String(), nullable=True),
+    sa.Column('os', sa.String(), nullable=True),
+    sa.Column('ip_address', sa.String(), nullable=False),
+    sa.Column('user_agent', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('last_seen', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('session_id')
+    )
+    op.create_index(op.f('ix_user_session_expires_at'), 'user_session', ['expires_at'], unique=False)
+    op.create_index(op.f('ix_user_session_user_id'), 'user_session', ['user_id'], unique=False)
     op.create_table('workspaces',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
@@ -103,6 +124,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_documents_id'), table_name='documents')
     op.drop_table('documents')
     op.drop_table('workspaces')
+    op.drop_index(op.f('ix_user_session_user_id'), table_name='user_session')
+    op.drop_index(op.f('ix_user_session_expires_at'), table_name='user_session')
+    op.drop_table('user_session')
     op.drop_table('user_auth')
     op.drop_table('users')
     # ### end Alembic commands ###

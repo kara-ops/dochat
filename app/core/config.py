@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     GOOGLE_SECRET:str
     GOOGLE_REDIRECT_URI:str
 
+    RESEND_API_KEY:str = "onboarding@resend.dev"
+
 
     class Config:
         env_file = ".env"

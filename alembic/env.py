@@ -1,10 +1,11 @@
 from logging.config import fileConfig
-from app.core.database import Base
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-from pgvector.sqlalchemy import Vector
 
 from alembic import context
+
+from app.core.database import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -19,9 +20,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.user_service.user_model.model import User,UserAuth
-from app.rag.app.models.service import Document,Chunk
-from app.workspace_service.model import WorkSpace, WorkSpaceMember
+from app.user_service.user_model.model import User,UserAuth,UserSession
+from app.workspace_service.model import WorkSpace,WorkSpaceMember
+from app.rag.app.models.service import Chunk,Document
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
