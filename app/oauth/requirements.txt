@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic-settings
+sqlalchemy
+psycopg2-binary
+alembic
+redis
+httpx
+python-jose[cryptography]
+python-dotenv
+passlib[bcrypt]>=1.7.4
