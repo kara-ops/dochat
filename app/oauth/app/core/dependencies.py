@@ -3,13 +3,13 @@ from fastapi import Depends,HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession as Session
 from sqlalchemy import select
 
-from app.database.postgres import get_db
+from app.core.database import get_db
 
 from app.core.security import decode_token
 
-from app.services.token_service import get_user,cache_my_user
+from app.oauth.app.services.token_service import get_user,cache_my_user
 
-from app.models.user_model import User
+from app.user_service.user_model.model import User
 
 from app.schemas.Oauth_schema import UserBaseModel
 
@@ -34,7 +34,6 @@ async def get_current_user(authorization: str = Header(), db:Session = Depends(g
             status_code = 401,
             detail = "Invalid token"
         )
-
     user_data = await get_user(decode["sub"])
     if user_data:
         return {"user":UserBaseModel.model_validate_json(user_data),

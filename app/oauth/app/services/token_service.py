@@ -1,4 +1,4 @@
-from app.database.redis import get_redis
+from app.core.database import get_redis
 import json
 
 

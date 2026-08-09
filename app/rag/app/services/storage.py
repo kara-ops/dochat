@@ -1,6 +1,6 @@
 from app.rag.app.models.service import Document,Chunk
 
-def save_documents(wk_id:int,filename:str,content:str,chunks:list[str],vector:list[list[float]],db,user)->dict:
+async def save_documents(wk_id:int,filename:str,content:str,chunks:list[str],vector:list[list[float]],db,user)->dict:
     save_docs = Document(
         filename=filename,
         workspace_id = wk_id,
@@ -8,8 +8,8 @@ def save_documents(wk_id:int,filename:str,content:str,chunks:list[str],vector:li
         user_id=user
     )
     db.add(save_docs)
-    db.commit()
-    db.refresh(save_docs)
+    await db.commit()
+    await db.refresh(save_docs)
     
 
     doc_id = save_docs.id
@@ -23,7 +23,7 @@ def save_documents(wk_id:int,filename:str,content:str,chunks:list[str],vector:li
             chunk_index=i
         )
         db.add(save_chunk)
-    db.commit()
+    await db.commit()
     return {
         "id": save_docs.id,
         "filename": save_docs.filename,

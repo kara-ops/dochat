@@ -6,7 +6,7 @@ from datetime import timedelta, datetime, timezone
 # Token
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession as Session
-from app.models.user_model import UserSession
+from app.user_service.user_model.model import UserSession
 from app.utils.code_gen import sha_hash
 from app.utils.time_calc import current_time
 

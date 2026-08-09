@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 
-def ingest_pdf(wk_id:int,file_path:str,db:Session,user_id):
+async def ingest_pdf(wk_id:int,file_path:str,db:Session,user_id):
     #vars
     file_type = [".pdf",".docx",".txt"]
     text = ""
@@ -44,7 +44,7 @@ def ingest_pdf(wk_id:int,file_path:str,db:Session,user_id):
     embedding = embed_text(chunks)#getting vectors
 
     
-    save_document = save_documents(wk_id,file_name,text,chunks,embedding,db,user_id)#saving all in db
+    save_document = await save_documents(wk_id,file_name,text,chunks,embedding,db,user_id)#saving all in db
 
     
     
