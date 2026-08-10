@@ -10,30 +10,30 @@ from app.core.database import get_db
 router = APIRouter(prefix="/rag", tags=["WORKSPACE"])
 
 @router.post("/workspaces")
-def create_wks(request:WorkSpace_Create,user:dict=Depends(get_current_user),db:Session=Depends(get_db)):
-    create = create_workspace(request.name,user.id,db)
+async def create_wks(request:WorkSpace_Create,user:dict=Depends(get_current_user),db:Session=Depends(get_db)):
+    create = await create_workspace(request.name,user.id,db)
     return create
 
 @router.get("/myWorkspace")
-def get_wks(db:Session=Depends(get_db),user:dict=Depends(get_current_user)):
-    get = get_wk(db,user.id)
+async def get_wks(db:Session=Depends(get_db),user:dict=Depends(get_current_user)):
+    get = await get_wk(db,user.id)
     return get
 
 @router.delete("/workspace/{wk_id}")
-def del_wk(wk_id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
-    get = delete_wk(db,wk_id,user.id)
+async def del_wk(wk_id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
+    get = await delete_wk(db,wk_id,user.id)
     return get
     
 @router.post("/workspace/{wk_id}/invite")
-def invite_in_wk(req:WorkSpaceMemberRequest,wk_id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("admin"))):
-    create = invite_user(db,req.email,wk_id,req.role)
+async def invite_in_wk(req:WorkSpaceMemberRequest,wk_id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("admin"))):
+    create = await invite_user(db,req.email,wk_id,req.role)
     return create
 
 @router.patch("/workspace/{wk_id}/{user_id}/role/{role}")
-def p_d(role:str,wk_id:int,user_id:int,db:Session=Depends(get_db),user:User=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
+async def p_d(role:str,wk_id:int,user_id:int,db:Session=Depends(get_db),user:User=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
     if user_id == user.id:
         raise HTTPException(status_code=400,detail="You cant demote/promote yourself")
-    get = promote_demote(db,wk_id,user_id,role)
+    get =  await promote_demote(db,wk_id,user_id,role)
     return get
 
             

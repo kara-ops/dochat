@@ -6,7 +6,7 @@ from google.genai import types
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 async def embed_text(texts:list[str])->list[list[float]]:
-    result = client.models.embed_content(
+    result = await client.models.embed_content(
                 model="gemini-embedding-001",
                 contents=texts,
                 config=types.EmbedContentConfig(output_dimensionality=768)

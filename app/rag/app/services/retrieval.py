@@ -7,7 +7,7 @@ from rank_bm25 import BM25Okapi
 
 
 
-def retrieve_chunks(wk_id:int,ques:str,db,k:int=5)->list[str]:
+async def retrieve_chunks(wk_id:int,ques:str,db,k:int=5)->list[str]:
     embed_ques = embed_text([ques])[0]
 
     query = text("SELECT chunks.id,chunks.content,chunks.chunk_index,documents.filename FROM chunks JOIN documents ON chunks.document_id=documents.id WHERE documents.workspace_id = :wk_id ORDER BY chunks.embedding <=> CAST(:vector AS vector) LIMIT :k")
@@ -16,9 +16,9 @@ def retrieve_chunks(wk_id:int,ques:str,db,k:int=5)->list[str]:
     real_chunks = [{"id":row.id,"filename":row.filename,"chunk_index":row.chunk_index,"content":row.content} for row in rows]
     return real_chunks
 
-def search_bm25(wk_id:int,db:Session,ques_query, k=20):
+async def search_bm25(wk_id:int,db:Session,ques_query, k=20):
     query = text("SELECT chunks.id,chunks.content,chunks.chunk_index,documents.filename FROM chunks JOIN documents ON chunks.document_id=documents.id WHERE documents.workspace_id = :wk_id")
-    res = db.execute(query,{"wk_id":wk_id})
+    res = await db.execute(query,{"wk_id":wk_id})
     rows = res.fetchall()
     filenames = [row.filename for row in rows]
     chunk_index = [row.chunk_index for row in rows]
@@ -51,9 +51,9 @@ def rrf_merge(vector_res, bm25_res, k=60, top_n=5):
     final = [{"id": chunk_final[0], "content": chunk_final[1]["content"], "filename":chunk_final[1]["filename"], "chunk_index":chunk_final[1]["chunk_index"]}for chunk_final in sorting]
     return final
 
-def hybrid_search(db:Session,wk_id:int,question:str):
-    vector_s = retrieve_chunks(wk_id,question,db)
-    bm25_s = search_bm25(wk_id,db,question)
+async def hybrid_search(db:Session,wk_id:int,question:str):
+    vector_s = await retrieve_chunks(wk_id,question,db)
+    bm25_s = await search_bm25(wk_id,db,question)
     return rrf_merge(vector_s,bm25_s)
 
         

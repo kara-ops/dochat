@@ -5,24 +5,24 @@ from app.user_service.user_model.model import User
 from app.workspace_service.model import WorkSpaceMember
 from app.workspace_service.schema import WorkSpaceRespond,WorkSpaceMemberRespond
 
-def create_workspace(name:str,user_id:int,db:Session):
+async def create_workspace(name:str,user_id:int,db:Session):
     create = WorkSpace(
         owner_id = user_id,
         name = name
     )
     db.add(create)
-    db.flush()
+    await db.flush()
     create_wk_mem = WorkSpaceMember(
         workspace_id = create.id,
         user_id = user_id,
         role = "owner"
     )
     db.add(create_wk_mem)
-    db.commit()
-    db.refresh(create_wk_mem)
-    return [WorkSpaceRespond.model_validate(create)]
+    await db.commit()
+    await db.refresh(create_wk_mem)
+    return WorkSpaceRespond.model_validate(create)
 
-def get_wk(db:Session,user_id:int):
+async def get_wk(db:Session,user_id:int):
     rows = db.query(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all()
     result = []
     for workspace in rows:

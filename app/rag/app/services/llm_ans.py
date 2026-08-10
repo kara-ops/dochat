@@ -4,7 +4,7 @@ from app.core.config import settings
 
 
 client = Groq(api_key=settings.GROQ_API_KEY)
-def generate_ans(ques:str,chunks:list[str]):
+async def generate_ans(ques:str,chunks:list[str]):
     formated = formatted = "\n\n".join(
     f"[{i+1}] {c['filename']} (chunk {c['chunk_index']}):\n{c['content']}"
     for i, c in enumerate(chunks)
@@ -22,7 +22,7 @@ def generate_ans(ques:str,chunks:list[str]):
                 {{"answer": "<your answer with inline citations>", "sources": ["filename, chunk X", few starting words of chunk]}}"""          
     
     # result="creater of this rag is broke, he cant afford a ai"
-    result = client.chat.completions.create(
+    result = await client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": prompt_str}],
         stream=True,
