@@ -53,7 +53,7 @@ async def get_current_user(authorization: str = Header(), db:Session = Depends(g
     return {"user":user,
             "payload":decode}
 
-def require_role(role:str):
+def require_role(role:str,wk_id:int):
     async def checker(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
         query = await db.execute(select(WorkSpaceMember).where(WorkSpaceMember.user_id==user["user"].id,WorkSpaceMember.role==role))
         check = query.scalar_one_or_none()
