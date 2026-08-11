@@ -11,6 +11,8 @@ from app.oauth.app.services.token_service import get_user,cache_my_user
 
 from app.user_service.user_model.model import User
 
+from workspace_service.model import WorkSpaceMember
+
 from app.schemas.Oauth_schema import UserBaseModel
 
 async def get_current_user(authorization: str = Header(), db:Session = Depends(get_db)):
@@ -50,3 +52,12 @@ async def get_current_user(authorization: str = Header(), db:Session = Depends(g
     await cache_my_user(decode["sub"],user)
     return {"user":user,
             "payload":decode}
+
+def require_role(role:str):
+    async def checker(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+        query = await db.execute(select(WorkSpaceMember).where(WorkSpaceMember.user_id==user["user"].id,WorkSpaceMember.role==role))
+        check = query.scalar_one_or_none()
+        if not check:
+            raise HTTPException(status_code=400,detail="Not Allowed")
+        return "Allowed"
+

@@ -68,7 +68,7 @@ async def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will 
     #check wk exists,    #check user exist
     check = await db.execute(select(WorkSpace,User).where(WorkSpace.id==wk_id,User.email==email))
     query = check.first()
-    if query:
+    if not query:
         return "User Invited"
 
     wk,user = query
