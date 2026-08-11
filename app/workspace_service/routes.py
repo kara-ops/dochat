@@ -1,5 +1,7 @@
 from fastapi import APIRouter,Depends,HTTPException
-from sqlalchemy.orm import Session
+
+from sqlalchemy.ext.asyncio import AsyncSession as Session
+
 from app.workspace_service.schema import WorkSpace_Create
 from app.workspace_service.model import WorkSpaceMember
 from app.oauth.app.core.dependencies import get_current_user,require_role
@@ -11,17 +13,17 @@ router = APIRouter(prefix="/rag", tags=["WORKSPACE"])
 
 @router.post("/workspaces")
 async def create_wks(request:WorkSpace_Create,user:dict=Depends(get_current_user),db:Session=Depends(get_db)):
-    create = await create_workspace(request.name,user.id,db)
+    create = await create_workspace(request.name,user["user"].id,db)
     return create
 
 @router.get("/myWorkspace")
 async def get_wks(db:Session=Depends(get_db),user:dict=Depends(get_current_user)):
-    get = await get_wk(db,user.id)
+    get = await get_wk(db,user["user"].id)
     return get
 
 @router.delete("/workspace/{wk_id}")
 async def del_wk(wk_id:int,db:Session=Depends(get_db),user:dict=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
-    get = await delete_wk(db,wk_id,user.id)
+    get = await delete_wk(db,wk_id,user["user"].id)
     return get
     
 @router.post("/workspace/{wk_id}/invite")
@@ -31,7 +33,7 @@ async def invite_in_wk(req:WorkSpaceMemberRequest,wk_id:int,db:Session=Depends(g
 
 @router.patch("/workspace/{wk_id}/{user_id}/role/{role}")
 async def p_d(role:str,wk_id:int,user_id:int,db:Session=Depends(get_db),user:User=Depends(get_current_user),mem:WorkSpaceMember=Depends(require_role("owner"))):
-    if user_id == user.id:
+    if user_id == user["user"].id:
         raise HTTPException(status_code=400,detail="You cant demote/promote yourself")
     get =  await promote_demote(db,wk_id,user_id,role)
     return get

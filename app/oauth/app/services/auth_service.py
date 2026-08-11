@@ -1,6 +1,6 @@
 from fastapi import Request,HTTPException
 
-from app.models.user_model import User,UserAuth,UserSession
+from app.user_service.user_model.model import User,UserAuth,UserSession
 from sqlalchemy.ext.asyncio import AsyncSession as Session
 from sqlalchemy import select,update
 from sqlalchemy.orm import joinedload

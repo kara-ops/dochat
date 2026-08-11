@@ -1,5 +1,8 @@
 from app.workspace_service.model import WorkSpace
-from sqlalchemy.orm import Session
+
+from sqlalchemy.ext.asyncio import AsyncSession as Session
+from sqlalchemy import select
+
 from fastapi import HTTPException
 from app.user_service.user_model.model import User
 from app.workspace_service.model import WorkSpaceMember
@@ -23,7 +26,7 @@ async def create_workspace(name:str,user_id:int,db:Session):
     return WorkSpaceRespond.model_validate(create)
 
 async def get_wk(db:Session,user_id:int):
-    rows = db.query(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all()
+    rows = await db.execute(select(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all())
     result = []
     for workspace in rows:
         result.append({
@@ -44,57 +47,64 @@ async def get_wk(db:Session,user_id:int):
         })
     return result
 
-def delete_wk(db:Session,wk_id:int,user_id:int):
-    get = db.query(WorkSpace).filter(WorkSpace.id==wk_id).first()
+async def delete_wk(db:Session,wk_id:int,user_id:int):
+    check = await db.execute(select(WorkSpace).filter(WorkSpace.id==wk_id))
+    get = check.scalar_one_or_none()
 
     if not get:
-        raise HTTPException(status_code=404,detail="Workspace not found")
+        raise HTTPException(status_code=404,detail="Workspace will be deleted")
     
     if user_id != get.owner_id:
         raise HTTPException(
             status_code=403,detail="you are not owner of this workspace"
         )
-    db.delete(get)
-    db.commit()
+    await db.delete(get)
+    await db.commit()
     
-    return {wk_id:"deleted"}
+    return "Workspace will be deleted"
 
-def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will be fixed
+async def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will be fixed
 
-    #check wk exists
-    get_wk = db.query(WorkSpace).filter(WorkSpace.id==wk_id).first()
-    if not get_wk:
-        raise HTTPException(status_code=404,detail="WorkSpace not found")
-    
-    #check user exist
-    get_user = db.query(User).filter(User.email==email).first()
-    if not get_user:
-        raise HTTPException(status_code=404,detail="User not found")
+    #check wk exists,    #check user exist
+    check = await db.execute(select(WorkSpace,User).where(WorkSpace.id==wk_id,User.email==email))
+    query = check.first()
+    if query:
+        return "User Invited"
+
+    wk,user = query
     
     #if user already in wk check
-    get = db.query(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==get_user.id).first()
+    query = await db.execute(select(WorkSpaceMember).where(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user.id))
+    get = query.scalar_one_or_none()
+
     if get:
         raise HTTPException(status_code=400,detail="User is already in the workspace")
+    
     create = WorkSpaceMember(
         workspace_id=wk_id,
-        user_id=get_user.id,
+        user_id=user.id,
         role=role
     )
     db.add(create)
-    db.commit()
-    db.refresh(create)
-    return create
+    await db.commit()
+    await db.refresh(create)
+    return "User Invited"
     
 
 roles = ["member","admin","viewer"]
-def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
+async def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
     if role not in roles:
         raise HTTPException(status_code=400,detail="You can promote/demote only to these roles: ['member', 'admin', 'viewer']")
-    get = db.query(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user_id).first()
+    
+    check = await db.execute(select(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user_id).first())
+
+    get = check.scalar_one_or_none()
+
     if not get:
-        raise HTTPException(status_code=404,detail="user/workspace not found")
+        raise HTTPException(status_code=404,detail="User will be Promoted/Demoted")
+    
     get.role = role
     db.add(get)
-    db.commit()
-    db.refresh(get)
-    return get
+    await db.commit()
+    await db.refresh(get)
+    return "User will be Promoted/Demoted"
