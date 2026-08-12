@@ -1,8 +1,7 @@
 from redis.asyncio import Redis
 from fastapi import HTTPException,Request
 
-
-from app.database.redis import get_redis
+from app.core.database import get_redis
 from fastapi import HTTPException, Request
 
 def fixed_window_rate_limiter(limit:int,ttl:int,rate_limit_ep:str,req:Request):
@@ -22,7 +21,7 @@ def fixed_window_rate_limiter(limit:int,ttl:int,rate_limit_ep:str,req:Request):
             async with redis.pipeline(transaction=True) as pipe:
                 pipe.incr(key)
                 pipe.expire(key,ttl,nx=True)
-            result = await pipe.execute()
+                result = await pipe.execute()
 
             attempts = result[0]
 

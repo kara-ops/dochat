@@ -1,17 +1,25 @@
 from fastapi import APIRouter, Depends, UploadFile, Request, File
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
+
 import os
 import shutil
-from app.rag.app.services.ingestion import ingest_pdf
-from app.oauth.app.core.dependencies import get_current_user,require_role
+
+
+from app.oauth.app.core.dependencies import get_current_user
+
 from app.user_service.user_model.model import User
-from app.workspace_service.model import WorkSpaceMember
-from app.security.rate_limit import upload_limit
-from app.rag.app.tasks.ingesion_task import ingest_doc_task
-from app.rag.celery_app import celery_app
 from app.user_service.user import get_docs
-import os 
+
+from app.workspace_service.model import WorkSpaceMember
+from app.workspace_service.dependency import require_role
+
+from app.rag.app.tasks.ingesion_task import ingest_doc_task
+from app.rag.app.services.ingestion import ingest_pdf
+from app.rag.celery_app import celery_app
+
+
 
 
 #file path fixed
@@ -24,13 +32,7 @@ router = APIRouter(prefix="/rag")
 
 @router.post("/workspaces/{wk_id}/documents/upload")
 async def upload_docs(wk_id:int, file: UploadFile = File(...), req:Request = None, db:Session=Depends(get_db), current_user: User = Depends(get_current_user), mem:WorkSpaceMember=Depends(require_role("member"))):
-    # fetch user ip
-    x_forwarded_for = req.headers.get("x-forwarded-for")
-    if x_forwarded_for:
-        ip = x_forwarded_for[0].strip()
-    else:
-        ip = req.client.host
-    upload_limit(ip)
+
 #save the file and create a path
     upload_dir = os.path.join(BASE_DIR,"temp")
     file_path = os.path.join(upload_dir,file.filename)

@@ -1,7 +1,7 @@
 from pathlib import Path
 import time
 from redis.asyncio import Redis 
-from app.database.redis import get_redis
+from app.core.database import get_redis
 from fastapi import Depends
 
 _SCRIPT_PATH = Path(__file__).parent.parent / 'scripts' / 'sliding_window.lua'

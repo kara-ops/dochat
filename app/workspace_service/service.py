@@ -8,6 +8,8 @@ from app.user_service.user_model.model import User
 from app.workspace_service.model import WorkSpaceMember
 from app.workspace_service.schema import WorkSpaceRespond,WorkSpaceMemberRespond
 
+from app.workspace_service.cache_service import delete_my_cached_role
+
 async def create_workspace(name:str,user_id:int,db:Session):
     create = WorkSpace(
         owner_id = user_id,
@@ -21,12 +23,16 @@ async def create_workspace(name:str,user_id:int,db:Session):
         role = "owner"
     )
     db.add(create_wk_mem)
-    await db.commit()
+    try:
+        await db.commit()
+    except:
+        await db.rollback()
     await db.refresh(create_wk_mem)
     return WorkSpaceRespond.model_validate(create)
 
 async def get_wk(db:Session,user_id:int):
-    rows = await db.execute(select(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all())
+    query = await db.execute(select(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all())
+    rows = query.all()
     result = []
     for workspace in rows:
         result.append({
@@ -58,8 +64,12 @@ async def delete_wk(db:Session,wk_id:int,user_id:int):
         raise HTTPException(
             status_code=403,detail="you are not owner of this workspace"
         )
-    await db.delete(get)
-    await db.commit()
+    try:
+        await db.delete(get)
+        await db.commit()
+    except:
+        await db.rollback()
+    
     
     return "Workspace will be deleted"
 
@@ -69,7 +79,7 @@ async def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will 
     check = await db.execute(select(WorkSpace,User).where(WorkSpace.id==wk_id,User.email==email))
     query = check.first()
     if not query:
-        return "User Invited"
+        return "User will be Invited"
 
     wk,user = query
     
@@ -86,9 +96,12 @@ async def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will 
         role=role
     )
     db.add(create)
-    await db.commit()
-    await db.refresh(create)
-    return "User Invited"
+    try:
+        await db.commit()
+    except:
+        db.rollback()
+        raise
+    return "User will be Invited"
     
 
 roles = ["member","admin","viewer"]
@@ -105,6 +118,10 @@ async def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
     
     get.role = role
     db.add(get)
-    await db.commit()
-    await db.refresh(get)
+    try:
+        await db.commit()
+    except:
+        await db.rollback()
+        raise
+    await delete_my_cached_role(wk_id,user_id)
     return "User will be Promoted/Demoted"

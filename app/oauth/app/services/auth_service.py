@@ -1,23 +1,23 @@
 from fastapi import Request,HTTPException
-
-from app.user_service.user_model.model import User,UserAuth,UserSession
 from sqlalchemy.ext.asyncio import AsyncSession as Session
 from sqlalchemy import select,update
 from sqlalchemy.orm import joinedload
 import asyncio
 
-from app.schemas.Oauth_schema import UserModel,UserAuthModel,UserSessionModel,UserBaseModel,GetSession,UserAndAuthModel
+from app.user_service.user_model.model import User,UserAuth,UserSession
 
-from app.utils.hashing import hash_password,verify_password
-from app.utils.code_gen import gen_code,gen_url_token,get_uuid,user_agent_parse,sha_hash
-from app.utils.email_service import forgot_pass_mail
-from app.utils.time_calc import c_plus_d,current_time
+from app.oauth.app.schemas.Oauth_schema import UserModel,UserAuthModel,UserSessionModel,UserBaseModel,GetSession,UserAndAuthModel
+
+from app.oauth.app.utils.hashing import hash_password,verify_password
+from app.oauth.app.utils.code_gen import gen_code,gen_url_token,get_uuid,user_agent_parse,sha_hash
+from app.oauth.app.utils.email_service import forgot_pass_mail
+from app.oauth.app.utils.time_calc import c_plus_d,current_time
 
 
-from app.services.token_service import forgot_pass_key,get_forgot_pass_key,del_forgot_pass_key,concurrent_r_token,concurrent_first_request,get_concurrent_r_token,get_user_session,cache_user_session,delete_user_session
-from app.services import token_service
+from app.oauth.app.services.token_service import forgot_pass_key,get_forgot_pass_key,del_forgot_pass_key,concurrent_r_token,concurrent_first_request,get_concurrent_r_token,get_user_session,cache_user_session,delete_user_session
+from app.oauth.app.services import token_service
 
-from app.core.security import create_access_token,create_refresh_token,decode_token,decode_token_r
+from app.oauth.app.core.security import create_access_token,create_refresh_token,decode_token,decode_token_r
 
 from starlette.concurrency import run_in_threadpool
 
@@ -26,13 +26,13 @@ from time import perf_counter
 
 
 async def get_or_create_user(db:Session, google_user:dict,ip:str,user_agent:str)->User:
-    query = await db.execute(select(User).options(joinedload(User.auth),joinedload(User.session)).where(User.email==google_user["email"]))
+    query = await db.execute(select(User).options(joinedload(User.user_auth),joinedload(User.session)).where(User.email==google_user["email"]))
     email = query.unique().scalar_one_or_none()
     if email:
         fixed_db_result = (UserModel.model_validate(email))
 
         provider = None
-        for auth in email.auth:
+        for auth in email.user_auth:
             if auth.provider == "google":
                 provider = "google"
 
@@ -263,14 +263,14 @@ async def create_l_user(ip,user_agent:str,email_id:str,password:str,db:Session):
             "user":stored_user}
 
 async def login_l_user(ip:str,user_agent:str,email_id:str,password:str,db:Session):
-    query = await db.execute(select(User).where(User.email==email_id).options(joinedload(User.auth),joinedload(User.session)))
+    query = await db.execute(select(User).where(User.email==email_id).options(joinedload(User.user_auth),joinedload(User.session)))
     store = query.unique().scalar_one_or_none()
     if not store:
         raise HTTPException(status_code=400,detail="Wrong credentials")
 
-    email = UserAndAuthModel.model_validate(store)
+    email = UserModel.model_validate(store)
 
-    for auth in email.auth:
+    for auth in email.user_auth:
         provider = None
         hashed_password = auth.hashed_password
         if auth.provider == "local":

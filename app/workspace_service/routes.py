@@ -4,10 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession as Session
 
 from app.workspace_service.schema import WorkSpace_Create
 from app.workspace_service.model import WorkSpaceMember
-from app.oauth.app.core.dependencies import get_current_user,require_role
-from app.user_service.user_model.model import User
 from app.workspace_service.service import create_workspace,get_wk,delete_wk,invite_user,promote_demote
 from app.workspace_service.schema import WorkSpaceMemberRequest
+from app.workspace_service.dependency import require_role
+
+from app.oauth.app.core.dependencies import get_current_user
+from app.user_service.user_model.model import User
+
 from app.core.database import get_db
 router = APIRouter(prefix="/rag", tags=["WORKSPACE"])
 

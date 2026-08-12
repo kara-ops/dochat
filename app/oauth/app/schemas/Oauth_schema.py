@@ -67,7 +67,7 @@ class UserModel(BaseModel):
     created_at : datetime
     avatar_url : str | None
 
-    auth : list[UserAuthModel] | None
+    user_auth : list[UserAuthModel] | None
     session : list[UserSessionModel] | None
 
     model_config = {"from_attributes":True}

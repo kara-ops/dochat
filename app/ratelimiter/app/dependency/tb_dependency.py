@@ -1,6 +1,6 @@
 from fastapi import HTTPException,Request
 from app.ratelimiter.app.services.token_bucket import TokenBucket
-from app.database.redis import get_redis
+from app.core.database import get_redis
 
 
 limiter = TokenBucket(get_redis())

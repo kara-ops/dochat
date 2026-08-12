@@ -25,16 +25,18 @@ def require_role(role:str):
         get_role = await get_my_cached_role(wk_id,user["user"].id)
         if get_role:
             if role_h[get_role] >= role_h[role]:
-                return "Allowed"
-            raise HTTPException(status_code=400,detail="Not Allowed")
+                return checker
+            raise HTTPException(status_code=403,detail="Not Allowed")
             
         query = await db.execute(select(WorkSpaceMember).where(WorkSpaceMember.wk_id==wk_id,WorkSpaceMember.user_id==user["user"].id))
         check = query.scalar_one_or_none()
 
         if not check:
-            raise HTTPException(status_code=400,detail="Not Allowed")
-        
+            raise HTTPException(status_code=403,detail="Not Allowed")
+
+        await cache_my_role(check.role,user["user"].id,wk_id)
+
         if role_h[check.role] >= role_h[role]:
-            await cache_my_role(check.role,user["user"].id,wk_id)
-            return "Allowed"
-        raise HTTPException(status_code=400,detail="Not Allowed")        
+            return checker
+        raise HTTPException(status_code=403,detail="Not Allowed")        
+

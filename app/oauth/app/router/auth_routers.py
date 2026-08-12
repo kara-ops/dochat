@@ -2,22 +2,22 @@ from fastapi import APIRouter,Depends, Header, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 
-from app.database.postgres import get_db
+from app.core.database import get_db
 
-from app.utils import oauth_client 
+from app.oauth.app.utils import oauth_client 
 
-from app.core import security 
+from app.oauth.app.core import security 
 from app.core.config import settings
-from app.core.dependencies import get_current_user
+from app.oauth.app.core.dependencies import get_current_user
 
 from datetime import datetime, timezone
 
-from app.services import token_service 
-from app.services import auth_service
+from app.oauth.app.services import token_service 
+from app.oauth.app.services import auth_service
 
-from app.models.user_model import User
+from app.user_service.user_model.model import User
 
-from app.schemas.Oauth_schema import RefreshRequest, TokenResponse, UserPublic, UserLogin, ResetPassword, ForgotPass, SetPassword, AddPassword
+from app.oauth.app.schemas.Oauth_schema import RefreshRequest, TokenResponse, UserPublic, UserLogin, ResetPassword, ForgotPass, SetPassword, AddPassword
 
 from app.ratelimiter.app.dependency.tb_dependency import token_bucket_rate_limiter
 from app.ratelimiter.app.dependency.fw_rate_limit import fixed_window_rate_limiter
@@ -28,17 +28,6 @@ router = APIRouter(prefix="/auth", tags =["auth"])
 
 @router.get("/oauth")
 def google_login(request : Request)->str:
-    x_forwarded_for = request.headers.get("x-forwarded-for")
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0]
-    else:
-        ip = request.client.host
-
-    call = token_service.rate_limiter(ip)
-    if not call:
-        raise HTTPException(
-            status_code = 429, detail = "Too many request"
-        )
 
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
@@ -78,8 +67,8 @@ async def google_callback(request:Request,res:Response,code:str, db:Session = De
     create_access =  get_or_create["access"]
     create_refresh = get_or_create["refresh"]
     
-    redirect_res = RedirectResponse(url=f"http://localhost:5173/oauth/callback?access_token={create_access}")
-    redirect_res.set_cookie(
+    # redirect_res = RedirectResponse(url=f"http://localhost:8000/auth/google/callback?access_token={create_access}")
+    res.set_cookie(
         key="refresh",
         value=create_refresh,
         max_age=60*60*24*7,
@@ -88,7 +77,7 @@ async def google_callback(request:Request,res:Response,code:str, db:Session = De
         secure=True
     )
 
-    return redirect_res
+    return create_access
 
 
 #rotate refresh token

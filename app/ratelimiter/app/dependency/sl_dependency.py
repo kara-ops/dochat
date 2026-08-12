@@ -1,7 +1,7 @@
-from app.database.redis import get_redis
+from app.core.database import get_redis
 from fastapi import HTTPException, Request
 from app.ratelimiter.app.services.s_w import SlidingWindowLimiter
-from app.utils.code_gen import get_uuid
+from app.oauth.app.utils.code_gen import get_uuid
 
 
 limiter = SlidingWindowLimiter(get_redis())

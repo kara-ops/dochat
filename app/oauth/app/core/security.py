@@ -1,16 +1,20 @@
 from jose import jwt, JWTError, ExpiredSignatureError
 from fastapi import HTTPException
-from app.core.config import settings
+
 from datetime import timedelta, datetime, timezone
+
+from app.core.config import settings
 
 # Token
 from sqlalchemy import select
+
 from sqlalchemy.ext.asyncio import AsyncSession as Session
 from app.user_service.user_model.model import UserSession
-from app.utils.code_gen import sha_hash
-from app.utils.time_calc import current_time
 
-from app.schemas.Oauth_schema import UserSessionModel
+from app.oauth.app.utils.code_gen import sha_hash
+from app.oauth.app.utils.time_calc import current_time
+
+from app.oauth.app.schemas.Oauth_schema import UserSessionModel
 
 from uuid import uuid4
 
