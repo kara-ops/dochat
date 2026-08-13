@@ -20,6 +20,14 @@ class WorkSpaceMemberRespond(BaseModel):
     created_at:datetime
     model_config = {"from_attributes": True}
 
+class WorkSpaceAndMembers(BaseModel):
+    id: int
+    name: str
+    owner_id: int
+    created_at: datetime
+    wk_member: list[WorkSpaceMemberRespond] 
+    model_config = {"from_attributes": True}
+
 class WorkSpaceMemberRole(str,Enum):
     ADMIN="admin"
     MEMBER="member"
@@ -28,3 +36,4 @@ class WorkSpaceMemberRole(str,Enum):
 class WorkSpaceMemberRequest(BaseModel):
     email:str
     role:WorkSpaceMemberRole
+

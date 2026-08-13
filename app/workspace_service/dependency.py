@@ -22,13 +22,13 @@ role_h = {"owner":4,
         }
 def require_role(role:str):
     async def checker(wk_id:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
-        get_role = await get_my_cached_role(wk_id,user["user"].id)
-        if get_role:
-            if role_h[get_role] >= role_h[role]:
-                return checker
-            raise HTTPException(status_code=403,detail="Not Allowed")
+        # get_role = await get_my_cached_role(wk_id,user["user"].id)
+        # if get_role:
+        #     if role_h[get_role] >= role_h[role]:
+        #         return checker
+        #     raise HTTPException(status_code=403,detail="Not Allowed puh")
             
-        query = await db.execute(select(WorkSpaceMember).where(WorkSpaceMember.wk_id==wk_id,WorkSpaceMember.user_id==user["user"].id))
+        query = await db.execute(select(WorkSpaceMember).where(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user["user"].id))
         check = query.scalar_one_or_none()
 
         if not check:
@@ -38,5 +38,6 @@ def require_role(role:str):
 
         if role_h[check.role] >= role_h[role]:
             return checker
-        raise HTTPException(status_code=403,detail="Not Allowed")        
+        raise HTTPException(status_code=403,detail="Not Allowed gay")     
+    return checker   
 

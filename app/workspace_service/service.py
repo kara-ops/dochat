@@ -2,11 +2,12 @@ from app.workspace_service.model import WorkSpace
 
 from sqlalchemy.ext.asyncio import AsyncSession as Session
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from fastapi import HTTPException
 from app.user_service.user_model.model import User
 from app.workspace_service.model import WorkSpaceMember
-from app.workspace_service.schema import WorkSpaceRespond,WorkSpaceMemberRespond
+from app.workspace_service.schema import WorkSpaceRespond,WorkSpaceMemberRespond,WorkSpaceAndMembers
 
 from app.workspace_service.cache_service import delete_my_cached_role
 
@@ -27,30 +28,17 @@ async def create_workspace(name:str,user_id:int,db:Session):
         await db.commit()
     except:
         await db.rollback()
-    await db.refresh(create_wk_mem)
+    await db.refresh(create)
     return WorkSpaceRespond.model_validate(create)
 
 async def get_wk(db:Session,user_id:int):
-    query = await db.execute(select(WorkSpace).join(WorkSpaceMember, WorkSpaceMember.workspace_id == WorkSpace.id).filter(WorkSpaceMember.user_id == user_id).all())
-    rows = query.all()
-    result = []
-    for workspace in rows:
-        result.append({
-            "id": workspace.id,
-            "name": workspace.name,
-            "owner_id": workspace.owner_id,
-            "created_at": workspace.created_at,
-            "members": [
-                {
-                    "id": member.id,
-                    "workspace_id": member.workspace_id,
-                    "user_id": member.user_id,
-                    "role": member.role,
-                    "created_at": member.created_at,
-                }
-                for member in workspace.wk_member
-            ],
-        })
+    query = await db.execute(select(WorkSpace).where(WorkSpace.owner_id == user_id).options(joinedload(WorkSpace.wk_member)))
+    check = query.unique().scalars().all()
+    result = [
+        WorkSpaceAndMembers.model_validate(workspace)
+        for workspace in check
+    ]
+
     return result
 
 async def delete_wk(db:Session,wk_id:int,user_id:int):
@@ -109,7 +97,7 @@ async def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
     if role not in roles:
         raise HTTPException(status_code=400,detail="You can promote/demote only to these roles: ['member', 'admin', 'viewer']")
     
-    check = await db.execute(select(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user_id).first())
+    check = await db.execute(select(WorkSpaceMember).filter(WorkSpaceMember.workspace_id==wk_id,WorkSpaceMember.user_id==user_id))
 
     get = check.scalar_one_or_none()
 
