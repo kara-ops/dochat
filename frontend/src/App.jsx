@@ -4,15 +4,32 @@ import AuthPage from './pages/AuthPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import WorkspacePage from './pages/WorkspacePage.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
+import Loader from './components/Loader.jsx'
 
 function App() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-screen bg-slate-950 flex items-center justify-center">
+        <Loader label="Initializing session..." />
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white">
       <Routes>
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/signup" element={<AuthPage initialMode="signup" />} />
+        <Route
+          path="/login"
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <AuthPage />}
+        />
+        <Route
+          path="/signup"
+          element={
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <AuthPage initialMode="signup" />
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -31,9 +48,9 @@ function App() {
         />
         <Route
           path="/"
-          element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />}
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
         />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )

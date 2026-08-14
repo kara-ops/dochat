@@ -1,13 +1,46 @@
-import { useAuth } from '../contexts/AuthContext.jsx'
-
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
+let inMemoryAccessToken = null
+
+export function setAccessToken(token) {
+  inMemoryAccessToken = token
+}
+
+export function getAccessToken() {
+  return inMemoryAccessToken
+}
+
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options)
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+
+  if (inMemoryAccessToken && !options.skipAuth) {
+    defaultHeaders['Authorization'] = `Bearer ${inMemoryAccessToken}`
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers: defaultHeaders,
+    credentials: 'include', // Ensure httpOnly refresh cookies are sent/received
+  })
+
   const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+  let data = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch (err) {
+    data = { detail: text }
+  }
+
   if (!response.ok) {
-    const error = new Error(data?.detail || response.statusText || 'Request failed')
+    const error = new Error(
+      (typeof data?.detail === 'string' ? data.detail : null) ||
+        data?.message ||
+        response.statusText ||
+        'Request failed'
+    )
     error.status = response.status
     error.data = data
     throw error
@@ -17,52 +50,78 @@ async function fetchJson(url, options = {}) {
 
 export async function apiRequest(path, { method = 'GET', body, skipAuth = false, headers = {} } = {}) {
   const url = `${API_BASE}${path}`
-  let token
-  if (!skipAuth) {
-    const stored = localStorage.getItem('documind_tokens')
-    if (stored) {
-      const tokens = JSON.parse(stored)
-      token = tokens.access_token
-      headers.Authorization = `Bearer ${token}`
-    }
+
+  let options = {
+    method,
+    headers,
+    skipAuth,
   }
 
-  if (body && !(body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json'
-    body = JSON.stringify(body)
+  if (body) {
+    options.body = JSON.stringify(body)
   }
 
   try {
-    return await fetchJson(url, { method, body, headers })
+    return await fetchJson(url, options)
   } catch (error) {
-    if (error.status === 401 && !skipAuth) {
-      const stored = localStorage.getItem('documind_tokens')
-      if (!stored) throw error
-      const tokens = JSON.parse(stored)
-      const refreshResponse = await fetchJson(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: tokens.refresh_token }),
-      })
-      localStorage.setItem('documind_tokens', JSON.stringify({ ...tokens, ...refreshResponse }))
-      headers.Authorization = `Bearer ${refreshResponse.access_token}`
-      return await fetchJson(url, { method, body, headers })
+    // Handle 401 Unauthorized by attempting a token refresh
+    if (error.status === 401 && !skipAuth && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
+      try {
+        const refreshData = await fetchJson(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          skipAuth: true,
+        })
+        const newAccess = refreshData.access_token || refreshData.access
+        if (newAccess) {
+          setAccessToken(newAccess)
+          options.headers = {
+            ...options.headers,
+            Authorization: `Bearer ${newAccess}`,
+          }
+          return await fetchJson(url, options)
+        }
+      } catch (refreshErr) {
+        setAccessToken(null)
+        throw refreshErr
+      }
     }
     throw error
   }
 }
 
-export function createSSE(url, { token, onMessage, onError, onComplete }) {
-  const eventSource = new EventSource(url, { withCredentials: false })
-  eventSource.onmessage = (event) => {
-    onMessage(event.data)
-  }
-  eventSource.onerror = (err) => {
-    onError(err)
-    eventSource.close()
-  }
-  eventSource.onopen = () => {
-    // no-op
-  }
-  return eventSource
-}
+// Auth API Calls
+export const loginApi = (email, password) =>
+  apiRequest('/auth/login', { method: 'POST', body: { email, password }, skipAuth: true })
+
+export const signUpApi = (email, password) =>
+  apiRequest('/auth/create-user', { method: 'POST', body: { email, password }, skipAuth: true })
+
+export const logoutApi = () =>
+  apiRequest('/auth/logout', { method: 'POST' })
+
+export const refreshTokenApi = () =>
+  apiRequest('/auth/refresh', { method: 'POST', skipAuth: true })
+
+export const getSessionsApi = () =>
+  apiRequest('/auth/get-session', { method: 'GET' })
+
+export const resetPasswordApi = (current_password, new_password) =>
+  apiRequest('/auth/reset-password', { method: 'PATCH', body: { current_password, new_password } })
+
+export const addPasswordApi = (new_password) =>
+  apiRequest('/auth/add-password', { method: 'POST', body: { new_password } })
+
+export const googleOAuthUrl = `${API_BASE}/auth/oauth`
+
+// Workspace API Calls
+export const getWorkspacesApi = () =>
+  apiRequest('/rag/myWorkspace', { method: 'GET' })
+
+export const createWorkspaceApi = (name) =>
+  apiRequest('/rag/workspaces', { method: 'POST', body: { name } })
+
+export const deleteWorkspaceApi = (wk_id) =>
+  apiRequest(`/rag/workspace/${wk_id}`, { method: 'DELETE' })
+
+export const inviteUserApi = (wk_id, email, role = 'member') =>
+  apiRequest(`/rag/workspace/${wk_id}/invite`, { method: 'POST', body: { email, role } })

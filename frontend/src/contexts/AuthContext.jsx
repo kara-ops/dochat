@@ -1,66 +1,116 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { apiRequest } from '../lib/api.jsx'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import {
+  setAccessToken,
+  loginApi,
+  signUpApi,
+  logoutApi,
+  refreshTokenApi,
+  getSessionsApi,
+  resetPasswordApi,
+  addPasswordApi,
+} from '../lib/api.jsx'
 
 const AuthContext = createContext(null)
 
-const AUTH_TOKENS_KEY = 'documind_tokens'
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [accessTokenState, setAccessTokenState] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const stored = localStorage.getItem(AUTH_TOKENS_KEY)
-    if (stored) {
-      try {
-        const tokens = JSON.parse(stored)
-        setUser({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token })
-      } catch (error) {
-        localStorage.removeItem(AUTH_TOKENS_KEY)
+  const handleSetAccessToken = useCallback((token, userDetails = null) => {
+    setAccessToken(token)
+    setAccessTokenState(token)
+    if (token) {
+      if (userDetails) {
+        setUser(userDetails)
+      } else {
+        setUser((prev) => prev || { authenticated: true })
       }
+    } else {
+      setUser(null)
     }
-    setLoading(false)
   }, [])
 
-  const saveTokens = (tokens) => {
-    localStorage.setItem(AUTH_TOKENS_KEY, JSON.stringify(tokens))
-    setUser({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token })
-  }
+  // On initial app load, try refreshing token with a 3s safety timeout
+  useEffect(() => {
+    let isMounted = true
 
-  const clearAuth = () => {
-    localStorage.removeItem(AUTH_TOKENS_KEY)
-    setUser(null)
-  }
+    async function initAuth() {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Auth check timeout')), 3000)
+      )
+
+      try {
+        const res = await Promise.race([refreshTokenApi(), timeoutPromise])
+        const token = res.access_token || res.access
+        if (isMounted && token) {
+          handleSetAccessToken(token, res.user)
+        }
+      } catch (err) {
+        if (isMounted) {
+          handleSetAccessToken(null)
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    initAuth()
+
+    return () => {
+      isMounted = false
+    }
+  }, [handleSetAccessToken])
 
   const signIn = async (email, password) => {
-    const data = await apiRequest('/auth/sign_in', { method: 'POST', body: { email, password } })
-    saveTokens(data)
-    return data
+    const res = await loginApi(email, password)
+    const token = res.access_token
+    handleSetAccessToken(token, { email, ...res.user })
+    return res
   }
 
   const signUp = async (email, password) => {
-    const data = await apiRequest('/auth/sign_up', { method: 'POST', body: { email, password } })
-    saveTokens(data)
-    return data
+    const res = await signUpApi(email, password)
+    const token = res.access_token
+    handleSetAccessToken(token, { email, ...res.user })
+    return res
   }
 
-  const refreshToken = async () => {
-    const stored = localStorage.getItem(AUTH_TOKENS_KEY)
-    if (!stored) throw new Error('No refresh token')
-    const tokens = JSON.parse(stored)
-    const data = await apiRequest('/auth/refresh', { method: 'POST', body: { refresh_token: tokens.refresh_token }, skipAuth: true })
-    saveTokens({ ...tokens, ...data })
-    return data
+  const signOut = async () => {
+    try {
+      await logoutApi()
+    } catch (e) {
+      console.warn('Logout network call failed, clearing local state anyway', e)
+    } finally {
+      handleSetAccessToken(null)
+    }
+  }
+
+  const getSessions = async () => {
+    return await getSessionsApi()
+  }
+
+  const resetPassword = async (currentPassword, newPassword) => {
+    return await resetPasswordApi(currentPassword, newPassword)
+  }
+
+  const addPassword = async (newPassword) => {
+    return await addPasswordApi(newPassword)
   }
 
   const value = {
     user,
+    accessToken: accessTokenState,
     loading,
-    isAuthenticated: Boolean(user?.accessToken),
+    isAuthenticated: Boolean(accessTokenState),
     signIn,
     signUp,
-    refreshToken,
-    clearAuth,
+    signOut,
+    getSessions,
+    resetPassword,
+    addPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,201 +1,252 @@
-# — Production-Grade RAG API
+# DocChat
 
-A multi-user document Q&A API built with FastAPI and pgvector. Upload any PDF, ask questions, get answers grounded in your document.
+DocChat is a FastAPI-based document workspace and RAG application that lets users authenticate, create workspaces, upload files, and ask questions about uploaded documents. The backend combines PostgreSQL, Redis, Celery, and LLM-powered retrieval to provide document-aware chat over user-owned content.
 
----
+## Overview
 
-## Architecture
+This project is a multi-service application with:
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   FastAPI   │────▶│   pgvector  │────▶│    Groq     │
-│   (Web)     │     │ (Vector DB) │     │    (LLM)    │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │                                        
-       ▼                                        
-┌─────────────┐     ┌─────────────┐            
-│    Redis    │     │   Celery    │            
-│   (Cache)   │     │  (Worker)   │            
-└─────────────┘     └─────────────┘            
-```
-
-### Ingestion Pipeline
-```
-PDF Upload → Text Extraction → Sentence-Aware Chunking (300 tokens, 50 overlap)
-→ Batch Embedding (Gemini text-embedding-001, 768 dims)
-→ pgvector Storage (HNSW index) → Background Task (Celery)
-```
-
-### Query Pipeline
-```
-Question → Redis Cache Check → Embed Question → Cosine Similarity Search (HNSW)
-→ Top-K Chunk Retrieval → LLM Generation (Groq) → Stream Response → Cache Answer
-```
+- FastAPI backend for auth, workspace management, file ingestion, and RAG queries
+- PostgreSQL for relational data and document metadata
+- Redis for caching and broker connectivity
+- Celery workers for asynchronous document processing
+- React + Vite frontend for the user interface
+- OAuth and JWT support for authentication
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| API | FastAPI |
-| Database | PostgreSQL + pgvector |
-| Vector Index | HNSW (cosine similarity) |
-| Embeddings | Gemini text-embedding-001 (768d) |
-| LLM | Groq (Llama 3.1 8B) |
-| Cache | Redis (cache-aside) |
-| Background Jobs | Celery |
-| Auth | JWT (python-jose + bcrypt) |
-| Containerization | Docker + Docker Compose |
-| Logging | structlog (structured JSON) |
-
----
-
-## Features
-
-- **Multi-user isolation** — every document scoped to its owner, cross-user access blocked
-- **Async ingestion** — upload returns immediately, Celery processes in background
-- **Semantic search** — HNSW index on pgvector for fast approximate nearest neighbor search
-- **Response caching** — identical questions served from Redis, skipping embedding + LLM
-- **Streaming responses** — LLM tokens streamed back in real time
-- **Rate limiting** — per-IP limits on upload (10/min) and query (20/min) endpoints
-- **Structured logging** — every query logged with latency, user, document, chunk count
-- **Global error handling** — clean JSON errors, no stack traces exposed
+- Python 3.11+
+- FastAPI
+- SQLAlchemy + async PostgreSQL
+- pgvector-ready PostgreSQL setup
+- Redis
+- Celery
+- Pydantic settings
+- React + Vite + Tailwind
+- Google / Groq LLM integrations
 
 ---
 
 ## Project Structure
 
-```
-rag-api/
+```text
+docchat/
+├── .env.example
+├── .env
+├── alembic/
 ├── app/
 │   ├── core/
-│   │   ├── config.py        # pydantic settings
-│   │   ├── database.py      # SQLAlchemy engine + Redis client
-│   │   └── logger.py        # structlog configuration
-│   ├── models/
-│   │   └── service.py       # User, Document, Chunk models
-│   ├── routers/
-│   │   ├── auth.py          # register, login
-│   │   ├── documents.py     # upload, list documents
-│   │   └── query.py         # semantic search + generation
-│   ├── schemas/
-│   │   └── query_schema.py  # Pydantic request/response models
-│   ├── security/
-│   │   ├── jwt_handler.py   # JWT encode/decode
-│   │   └── dependency.py    # get_current_user dependency
-│   └── services/
-│       ├── chunker.py       # sentence-aware chunking with overlap
-│       ├── embeddings.py    # batch embedding via Gemini
-│       ├── storage.py       # save documents + chunks to DB
-│       ├── retrieval.py     # pgvector cosine similarity search
-│       ├── generation.py    # streaming LLM generation via Groq
-│       ├── ingestion.py     # orchestrates full ingestion pipeline
-│       └── cache.py         # Redis get/set helpers
-├── tasks/
-│   └── ingesion_task.py     # Celery async ingestion task
-├── alembic/                 # database migrations
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   └── logger.py
+│   ├── main.py
+│   ├── oauth/
+│   │   └── app/
+│   │       ├── core/
+│   │       ├── router/
+│   │       ├── schemas/
+│   │       ├── services/
+│   │       └── utils/
+│   ├── rag/
+│   │   ├── app/
+│   │   │   ├── models/
+│   │   │   ├── routers/
+│   │   │   ├── schemas/
+│   │   │   ├── services/
+│   │   │   └── tasks/
+│   │   ├── celery_app.py
+│   │   └── tests/
+│   ├── ratelimiter/
+│   ├── user_service/
+│   ├── workspace_service/
+│   └── test.py
+├── frontend/
+│   ├── package.json
+│   ├── public/
+│   └── src/
+├── alembic.ini
 ├── docker-compose.yml
 ├── Dockerfile
-└── main.py
+├── requirements.txt
+├── README.md
+└── package-lock.json
 ```
 
 ---
 
-## Getting Started
+## Core Features
 
-### Prerequisites
-- Docker + Docker Compose
-- Gemini API key (aistudio.google.com)
-- Groq API key (console.groq.com)
+- User authentication and authorization
+- Workspace creation and role-based access control
+- Invite and role management inside workspaces
+- PDF / document upload workflow
+- Background ingestion with Celery
+- Document question answering using retrieved context
+- Redis-based caching for repeated answers
+- FastAPI API endpoints and Swagger docs
+- Frontend client for workspace and chat workflows
 
-### Setup
+---
 
-```bash
-git clone https://github.com/kara-ops/rag-api.git
-cd rag-api
-```
+## Environment Variables
 
-Create `.env`:
+Copy [.env.example](.env.example) to a local `.env` and fill in the values.
+
 ```env
-DATABASE_URL=postgresql://postgres:password@db:5432/ragdb
-REDIS_URL=redis://redis:6379/0
-GEMINI_API_KEY=your_gemini_key
-GROQ_API_KEY=your_groq_key
-SECRET_KEY=your_secret_key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
+GEMINI_API_KEY=
+GROQ_API_KEY=
+
+DATABASE_URL=
+REDIS_URL=
+
+SECRET_KEY=
+ALGORITHM=
+ACCESS_TOKEN_EXPIRE_MINUTES=
+REFRESH_TOKEN_EXPIRE_DAYS=
+
+GOOGLE_CLIENT_ID=
+GOOGLE_SECRET=
+GOOGLE_REDIRECT_URI=
+
+RESEND_API_KEY=onboarding@resend.dev
 ```
 
-Run:
+Notes:
+- `DATABASE_URL` should point to your Postgres instance
+- `REDIS_URL` is used by both the app and Celery
+- `SECRET_KEY` and `ALGORITHM` are required for JWT auth
+- `GOOGLE_*` values are used for Google OAuth flow if enabled
+
+---
+
+## Local Development
+
+### 1) Install dependencies
+
 ```bash
-docker compose up --build
+cd Documents/docchat
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-API available at `http://localhost:8000`
-Swagger docs at `http://localhost:8000/docs`
+### 2) Start supporting services
+
+```bash
+docker compose up -d db redis
+```
+
+This starts:
+- PostgreSQL on `localhost:5433`
+- Redis on `localhost:6379`
+
+### 3) Run the backend
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API will be available at:
+- http://localhost:8000
+- Swagger UI: http://localhost:8000/docs
+
+### 4) Run the Celery worker
+
+In a second terminal:
+
+```bash
+celery -A app.rag.celery_app worker --loglevel=info
+```
+
+This is needed for background document processing tasks.
+
+### 5) Run the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend is served by Vite, typically on:
+- http://localhost:5173
 
 ---
 
-## API Reference
+## Main API Areas
 
-### Auth
-```
-POST /auth/sign_up     — register new user
-POST /auth/sign_in     — login, returns JWT token
-```
+### Authentication
 
-### Documents
-```
-POST /rag/upload       — upload PDF (requires auth)
-GET  /rag/documents    — list your documents (requires auth)
-```
+Routes are mounted from the OAuth app and include standard auth flows for users and sessions.
 
-### Query
-```
-POST /rag/query        — ask a question about a document (requires auth)
-GET  /rag/task/{id}    — check ingestion task status
+### Workspace Management
+
+```http
+POST /rag/workspaces
+GET /rag/myWorkspace
+DELETE /rag/workspace/{wk_id}
+POST /rag/workspace/{wk_id}/invite
+PATCH /rag/workspace/{wk_id}/{user_id}/role/{role}
 ```
 
-### Query Request
-```json
-{
-  "question": "what are the main causes of coastal pollution?",
-  "document_id": 1
-}
+### Document Upload and Retrieval
+
+```http
+POST /rag/workspaces/{wk_id}/documents/upload
+GET /rag/task/{task_id}
+GET /rag/documents
 ```
 
-### Query Response (streaming)
+### RAG Query
+
+```http
+POST /rag/query
 ```
-Coastal pollution is primarily caused by...
-```
+
+This endpoint accepts a document ID and a question, retrieves relevant context, and streams the answer back to the client.
 
 ---
 
-## Key Design Decisions
+## Sample Workflow
 
-**Why pgvector over Pinecone/Weaviate?**
-pgvector runs inside PostgreSQL — no additional infrastructure, no vendor lock-in. With HNSW indexing it handles millions of vectors with sub-10ms search latency. Suitable for production workloads at reasonable scale.
-
-**Why sentence-aware chunking over fixed-size?**
-Fixed character splitting cuts sentences mid-thought, degrading retrieval quality. Sentence-aware chunking with 50-token overlap preserves semantic boundaries and ensures context isn't lost at chunk edges.
-
-**Why cache at the query layer?**
-Caching the final answer (not embeddings) skips three expensive operations on repeated questions — embedding API call, vector search, and LLM generation. TTL of 1 hour balances freshness with cost.
-
-**Why Celery for ingestion?**
-Large PDFs can take 30-60 seconds to process (chunking + batch embedding + DB writes). Synchronous ingestion would block the request thread. Celery processes in background, upload returns immediately with a task ID.
+1. Create a user account or sign in.
+2. Create a workspace.
+3. Invite collaborators or manage workspace roles.
+4. Upload a document to a workspace.
+5. Wait for the Celery ingestion task to finish.
+6. Ask a question against the document via `/rag/query`.
+7. Receive a grounded answer based on retrieved chunks.
 
 ---
 
-## What I Learned
+## Notes
 
-- Vector similarity search and HNSW indexing
-- Production RAG architecture — chunking strategy, embedding consistency, retrieval quality
-- pgvector as a production vector store inside PostgreSQL
-- Cache-aside pattern applied to LLM responses
-- Async task processing with Celery + Redis
-- JWT authentication with per-resource ownership checks
-- Streaming HTTP responses with FastAPI StreamingResponse
-- Structured JSON logging for production observability
-- Raw SQL queries for performance-critical paths (avoiding ORM overhead on vector search)
+- The project is structured as a monorepo-like Python app with a separate frontend directory.
+- The backend is modular, with auth, RAG, user, and workspace concerns split into different packages.
+- The application is still evolving, so some endpoints and integrations may vary depending on which services are active in your environment.
+
+---
+
+## Useful Commands
+
+```bash
+# Start dependencies
+docker compose up -d db redis
+
+# Run app
+uvicorn app.main:app --reload
+
+# Run worker
+celery -A app.rag.celery_app worker --loglevel=info
+
+# Frontend
+cd frontend && npm run dev
+```
+
+If you want, I can also generate a more polished version with:
+- a separate "API reference" section for each endpoint
+- a production deployment section
+- a troubleshooting section
+- a contributor setup guide

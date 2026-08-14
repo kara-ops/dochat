@@ -102,7 +102,7 @@ async def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
     get = check.scalar_one_or_none()
 
     if not get:
-        raise HTTPException(status_code=404,detail="User will be Promoted/Demoted")
+        raise HTTPException(status_code=403,detail="User will be Promoted/Demoted")
     
     get.role = role
     db.add(get)
