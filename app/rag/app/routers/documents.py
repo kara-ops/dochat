@@ -46,11 +46,11 @@ async def upload_docs(wk_id:int, file: UploadFile = File(...), req:Request = Non
     return {"task_id": task.id,"status":"processing"}
 
 @router.get("/task/{task_id}")
-def get_task_status(task_id:str):
-    task  = celery_app.AsyncResult(task_id)
+async def get_task_status(task_id:str):
+    task  = await celery_app.AsyncResult(task_id)
     return {"task_id":task_id,"status":task.status}
 
 @router.get("/documents")
-def get_doc_id(db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
-    return get_docs(db,current_user.id)
+async def get_doc_id(db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    return await get_docs(db,current_user.id)
      

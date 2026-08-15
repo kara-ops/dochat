@@ -1,5 +1,5 @@
 from fastapi import APIRouter,Depends,HTTPException,Request
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession as Session
 from fastapi.responses import StreamingResponse
 import time
 
@@ -22,23 +22,24 @@ from app.rag.app.schemas.query_schema import QueryRequest
 router = APIRouter(prefix="/rag")
 
 @router.post("/query")
-def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user),wk:WorkSpaceMember=Depends(require_role("member"))):
+async def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user),wk:WorkSpaceMember=Depends(require_role("member"))):
     start = time.time()
     
     cache_key = f"{current_user.id}:{req.document_id}:{req.question.strip().lower()}"
-    cache_check = get_cache(cache_key)
+    cache_check = await get_cache(cache_key)
     if cache_check:
         return {"answer":cache_check,
                  "source":"cached"}
 
 
     #check if a user has that doc they asked for
-    document = db.query(Document).filter(Document.id==req.document_id,Document.user_id==current_user.id).first()
+    query = await db.select(Document).where(Document.id==req.document_id,Document.user_id==current_user.id)
+    document = query.scalars_one_or_none()
     if not document:
         raise HTTPException(status_code=403,detail="Document not found")
 
     #retrival of chunks
-    retrieve_context = retrieve_chunks(current_user.id,req.document_id,req.question,db)
+    retrieve_context = await retrieve_chunks(current_user.id,req.document_id,req.question,db)
     #No content found in the chunks
     if not retrieve_context:
         raise HTTPException(status_code=404,detail="No information found in the document")
