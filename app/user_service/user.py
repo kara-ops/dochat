@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 #get all the docs a user has
 async def get_docs(db:Session,user_id:int):
-    check = await db.execute(select(Document).where(Document.user_id==user_id).all())
+    check = await db.execute(select(Document).where(Document.user_id==user_id))
     query = check.scalars().all()
     if not query:
         raise HTTPException(status_code=404,detail="No document found")

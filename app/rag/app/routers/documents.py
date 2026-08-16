@@ -31,7 +31,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 router = APIRouter(prefix="/rag")
 
 @router.post("/workspaces/{wk_id}/documents/upload")
-async def upload_docs(wk_id:int, file: UploadFile = File(...), req:Request = None, db:Session=Depends(get_db), current_user: User = Depends(get_current_user), mem:WorkSpaceMember=Depends(require_role("member"))):
+async def upload_docs( req:Request,wk_id:int, file: UploadFile = File(...), db:Session=Depends(get_db), current_user: User = Depends(get_current_user), mem:WorkSpaceMember=Depends(require_role("member"))):
 
 #save the file and create a path
     upload_dir = os.path.join(BASE_DIR,"temp")
@@ -41,16 +41,16 @@ async def upload_docs(wk_id:int, file: UploadFile = File(...), req:Request = Non
         shutil.copyfileobj(file.file,buffer)
     
 #calling service function to ingest
-    task = ingest_doc_task.delay(wk_id,file_path,current_user.id)
+    task = ingest_doc_task.delay(wk_id,file_path,current_user["user"].id)
     
     return {"task_id": task.id,"status":"processing"}
 
 @router.get("/task/{task_id}")
 async def get_task_status(task_id:str):
-    task  = await celery_app.AsyncResult(task_id)
+    task  = celery_app.AsyncResult(task_id)
     return {"task_id":task_id,"status":task.status}
 
 @router.get("/documents")
 async def get_doc_id(db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
-    return await get_docs(db,current_user.id)
+    return await get_docs(db,current_user["user"].id)
      

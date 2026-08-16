@@ -1,16 +1,18 @@
-
-
+from starlette.concurrency import run_in_threadpool
 from app.core.config import settings
 from google import genai
 from google.genai import types
 
+
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 async def embed_text(texts:list[str])->list[list[float]]:
-    result = await client.models.embed_content(
+    def _embed():
+        result = client.models.embed_content(
                 model="gemini-embedding-001",
                 contents=texts,
                 config=types.EmbedContentConfig(output_dimensionality=768)
             )
-    return [e.values for e in result.embeddings]
+        return [e.values for e in result.embeddings]
+    return await run_in_threadpool(_embed)
 
 

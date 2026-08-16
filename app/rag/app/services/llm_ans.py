@@ -1,9 +1,9 @@
-from groq import Groq
+from groq import AsyncGroq
 from google.genai import types
 from app.core.config import settings
 
 
-client = Groq(api_key=settings.GROQ_API_KEY)
+client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 async def generate_ans(ques:str,chunks:list[str]):
     formated = formatted = "\n\n".join(
     f"[{i+1}] {c['filename']} (chunk {c['chunk_index']}):\n{c['content']}"

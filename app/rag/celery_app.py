@@ -7,13 +7,13 @@ celery_app = Celery(
     "rag_worker",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.ingesion_task"]
+    include=["app.rag.app.tasks.ingesion_task"]
 )
 
 celery_app.conf.update(
     task_serializer="json",
     result_serializer="json",
-    accepp_content=["json"],
+    accept_content=["json"],
     worker_concurrency=1,
     worker_pool="solo"
 )

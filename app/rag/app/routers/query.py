@@ -2,6 +2,7 @@ from fastapi import APIRouter,Depends,HTTPException,Request
 from sqlalchemy.ext.asyncio import AsyncSession as Session
 from fastapi.responses import StreamingResponse
 import time
+from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.logger import logger
@@ -33,8 +34,8 @@ async def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),curr
 
 
     #check if a user has that doc they asked for
-    query = await db.select(Document).where(Document.id==req.document_id,Document.user_id==current_user.id)
-    document = query.scalars_one_or_none()
+    query = await db.execute(select(Document).where(Document.id==req.document_id,Document.user_id==current_user.id))
+    document = query.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=403,detail="Document not found")
 
