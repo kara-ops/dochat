@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Bot, Layers, UserPlus, AlertTriangle, ArrowRight, FileText } from 'lucide-react'
+import { Plus, Bot, Layers, UserPlus, ArrowRight, FileText } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout.jsx'
 import { getWorkspacesApi, createWorkspaceApi } from '../lib/api.jsx'
 import { useToast } from '../components/ToastProvider.jsx'
@@ -58,16 +58,6 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="h-full flex flex-col overflow-y-auto p-6 md:p-10 max-w-6xl mx-auto w-full">
-        {/* RAG Status Alert */}
-        <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-400" />
-            <div>
-              <span className="font-semibold">Notice:</span> RAG Document Retrieval is currently offline for service updates. Workspace management & authentication are active.
-            </div>
-          </div>
-        </div>
-
         {/* Hero Section */}
         <div className="p-8 md:p-10 rounded-3xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-slate-900 border border-slate-800 shadow-2xl mb-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">

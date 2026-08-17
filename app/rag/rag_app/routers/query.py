@@ -26,7 +26,7 @@ router = APIRouter(prefix="/rag")
 async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user),wk:WorkSpaceMember=Depends(require_role("member"))):
     start = time.time()
     
-    cache_key = f"{current_user["user"].id}:{req.document_id}:{req.question.strip().lower()}"
+    cache_key = f"{current_user["user"].id}:{req.question.strip().lower()}"
     cache_check = await get_cache(cache_key)
     if cache_check:
         return {"answer":cache_check,
@@ -34,10 +34,10 @@ async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(ge
 
 
     #check if a user has that doc they asked for
-    query = await db.execute(select(Document).where(Document.id==req.document_id,Document.user_id==current_user["user"].id))
-    document = query.scalar_one_or_none()
+    query = await db.execute(select(Document).where(Document.workspace_id==wk_id))
+    document = query.scalars().all()
     if not document:
-        raise HTTPException(status_code=403,detail="Document not found")
+        raise HTTPException(status_code=403,detail="No Documents in this workspace")
 
     #retrival of chunks
     retrieve_context = await retrieve_chunks(wk_id,req.question,db)
@@ -55,7 +55,7 @@ async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(ge
         latency = time.time() - start
         logger.info("query_completed",
                 user_id=current_user["user"].id,
-                document_id=req.document_id,
+                workspace_id=wk_id,
                 question=req.question[:50],
                 letency_ms=round(latency*1000,2)
                 )

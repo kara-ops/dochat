@@ -30,6 +30,6 @@ async def generate_ans(ques:str,chunks:list[str]):
     )
     async for chunk in result:
         token = chunk.choices[0].delta.content
-        print(f"TOKEN:{repr(token)}")
+        print({"token":repr(token)})
         if token:
             yield token

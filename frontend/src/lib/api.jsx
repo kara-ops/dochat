@@ -11,9 +11,10 @@ export function getAccessToken() {
 }
 
 async function fetchJson(url, options = {}) {
-  const defaultHeaders = {
-    'Content-Type': 'application/json',
-    ...options.headers,
+  const defaultHeaders = { ...options.headers }
+
+  if (!(options.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json'
   }
 
   if (inMemoryAccessToken && !options.skipAuth) {
@@ -23,14 +24,14 @@ async function fetchJson(url, options = {}) {
   const response = await fetch(url, {
     ...options,
     headers: defaultHeaders,
-    credentials: 'include', // Ensure httpOnly refresh cookies are sent/received
+    credentials: 'include',
   })
 
   const text = await response.text()
   let data = null
   try {
     data = text ? JSON.parse(text) : null
-  } catch (err) {
+  } catch {
     data = { detail: text }
   }
 
@@ -51,20 +52,16 @@ async function fetchJson(url, options = {}) {
 export async function apiRequest(path, { method = 'GET', body, skipAuth = false, headers = {} } = {}) {
   const url = `${API_BASE}${path}`
 
-  let options = {
+  const options = {
     method,
     headers,
     skipAuth,
-  }
-
-  if (body) {
-    options.body = JSON.stringify(body)
+    ...(body != null ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}),
   }
 
   try {
     return await fetchJson(url, options)
   } catch (error) {
-    // Handle 401 Unauthorized by attempting a token refresh
     if (error.status === 401 && !skipAuth && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
       try {
         const refreshData = await fetchJson(`${API_BASE}/auth/refresh`, {
@@ -89,7 +86,7 @@ export async function apiRequest(path, { method = 'GET', body, skipAuth = false,
   }
 }
 
-// Auth API Calls
+// ─── Auth ────────────────────────────────────────────────────────────────────
 export const loginApi = (email, password) =>
   apiRequest('/auth/login', { method: 'POST', body: { email, password }, skipAuth: true })
 
@@ -113,7 +110,7 @@ export const addPasswordApi = (new_password) =>
 
 export const googleOAuthUrl = `${API_BASE}/auth/oauth`
 
-// Workspace API Calls
+// ─── Workspaces ───────────────────────────────────────────────────────────────
 export const getWorkspacesApi = () =>
   apiRequest('/rag/myWorkspace', { method: 'GET' })
 
@@ -125,3 +122,73 @@ export const deleteWorkspaceApi = (wk_id) =>
 
 export const inviteUserApi = (wk_id, email, role = 'member') =>
   apiRequest(`/rag/workspace/${wk_id}/invite`, { method: 'POST', body: { email, role } })
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+/** Lists all documents belonging to the current user (across workspaces). */
+export const getDocumentsApi = () =>
+  apiRequest('/rag/documents', { method: 'GET' })
+
+/** Polls a Celery task status. Returns { task_id, status }. */
+export const pollTaskApi = (task_id) =>
+  apiRequest(`/rag/task/${task_id}`, { method: 'GET' })
+
+/**
+ * Uploads a PDF/text file to a workspace via multipart/form-data.
+ * Returns { task_id, status: "processing" }.
+ */
+export async function uploadDocumentApi(wk_id, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const headers = {}
+  if (inMemoryAccessToken) {
+    headers['Authorization'] = `Bearer ${inMemoryAccessToken}`
+  }
+
+  const response = await fetch(`${API_BASE}/rag/workspaces/${wk_id}/documents/upload`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: formData,
+  })
+
+  const text = await response.text()
+  let data = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = { detail: text }
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      (typeof data?.detail === 'string' ? data.detail : null) ||
+        response.statusText ||
+        'Upload failed'
+    )
+    error.status = response.status
+    throw error
+  }
+  return data
+}
+
+// ─── RAG Streaming ───────────────────────────────────────────────────────────
+/**
+ * Opens a streaming POST to /rag/query/{wk_id}.
+ * Returns the raw Response object so the caller can consume response.body as a ReadableStream.
+ * The backend streams plain UTF-8 text tokens (not JSON).
+ */
+export async function queryRagStream(wk_id, question, signal) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (inMemoryAccessToken) {
+    headers['Authorization'] = `Bearer ${inMemoryAccessToken}`
+  }
+
+  return fetch(`${API_BASE}/rag/query/${wk_id}`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ question }),
+    signal,
+  })
+}
