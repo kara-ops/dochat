@@ -1,5 +1,5 @@
-from app.rag.app.models.service import Document,Chunk
-from app.rag.app.schemas.user_schema import DocumentModel
+from app.rag.rag_app.models.service import Document,Chunk
+from app.rag.rag_app.schemas.user_schema import DocumentModel
 
 async def save_documents(wk_id:int,filename:str,content:str,chunks:list[str],vector:list[list[float]],db,user)->dict:
     save_docs = Document(

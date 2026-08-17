@@ -1,9 +1,9 @@
 import pymupdf as pdf
 from fastapi import HTTPException
 from docx import Document
-from app.rag.app.services.chunker import chunk_text
-from app.rag.app.services.embeddings import embed_text
-from app.rag.app.services.storage import save_documents
+from app.rag.rag_app.services.chunker import chunk_text
+from app.rag.rag_app.services.embeddings import embed_text
+from app.rag.rag_app.services.storage import save_documents
 from app.core.database import get_db
 import os
 from sqlalchemy.orm import Session
@@ -41,7 +41,7 @@ async def ingest_pdf(wk_id:int,file_path:str,db:Session,user_id):
         
     chunks = chunk_text(text)#chunking 
 
-    embedding = embed_text(chunks)#getting vectors
+    embedding = await embed_text(chunks)#getting vectors
 
     
     save_document = await save_documents(wk_id,file_name,text,chunks,embedding,db,user_id)#saving all in db

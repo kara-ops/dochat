@@ -23,12 +23,12 @@ async def generate_ans(ques:str,chunks:list[str]):
     
     # result="creater of this rag is broke, he cant afford a ai"
     result = await client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="qwen/qwen3.6-27b",
         messages=[{"role": "user", "content": prompt_str}],
         stream=True,
         temperature=0
     )
-    for chunk in result:
+    async for chunk in result:
         token = chunk.choices[0].delta.content
         print(f"TOKEN:{repr(token)}")
         if token:

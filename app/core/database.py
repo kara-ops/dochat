@@ -5,12 +5,12 @@ import redis.asyncio as redis
 
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False, pool_size=20, max_overflow=20, pool_timeout=30)
-AsyncSessionlocal = sessionmaker(bind=engine, class_=AsyncSession, autoflush = False, autocommit = False)
+AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, autoflush = False, autocommit = False)
 
 Base = declarative_base()
 
 async def get_db():
-    async with AsyncSessionlocal() as session:
+    async with AsyncSessionLocal() as session:
         yield session
 
 

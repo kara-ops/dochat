@@ -1,5 +1,5 @@
-from app.rag.app.routers.documents import  router as upload_route
-from app.rag.app.routers.query import router as query_route
+from app.rag.rag_app.routers.documents import  router as upload_route
+from app.rag.rag_app.routers.query import router as query_route
 from app.oauth.app.router.auth_routers import router as auth_router
 from app.oauth.app.router.users import router as user_router
 from app.workspace_service.routes import router as workspace_router

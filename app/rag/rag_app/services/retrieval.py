@@ -1,17 +1,19 @@
-from app.rag.app.services.embeddings import embed_text
+from app.rag.rag_app.services.embeddings import embed_text
 from app.core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession 
 from sqlalchemy  import text
 from rank_bm25 import BM25Okapi
-
+import json
 
 
 
 async def retrieve_chunks(wk_id:int,ques:str,db:AsyncSession,k:int=5)->list[str]:
-    embed_ques = await embed_text([ques])[0]
+
+    embed_ques = (await embed_text([str(ques)]))[0]
+    vector_que = json.dumps(embed_ques)
 
     query = text("SELECT chunks.id,chunks.content,chunks.chunk_index,documents.filename FROM chunks JOIN documents ON chunks.document_id=documents.id WHERE documents.workspace_id = :wk_id ORDER BY chunks.embedding <=> CAST(:vector AS vector) LIMIT :k")
-    res = await db.execute(query,{"vector":embed_ques,"k":k,"wk_id":wk_id})
+    res = await db.execute(query,{"vector":vector_que,"k":k,"wk_id":wk_id})
     rows = res.fetchall()
     real_chunks = [{"id":row.id,"filename":row.filename,"chunk_index":row.chunk_index,"content":row.content} for row in rows]
     return real_chunks

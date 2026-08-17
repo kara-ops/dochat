@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession as Session
-from app.rag.app.models.service import Document
+from app.rag.rag_app.models.service import Document
 from app.user_service.user_model.model import User,UserAuth
 from fastapi import HTTPException
 

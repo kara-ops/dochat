@@ -15,9 +15,9 @@ from app.user_service.user import get_docs
 from app.workspace_service.model import WorkSpaceMember
 from app.workspace_service.dependency import require_role
 
-from app.rag.app.tasks.ingesion_task import ingest_doc_task
-from app.rag.app.services.ingestion import ingest_pdf
-from app.rag.celery_app import celery_app
+from app.rag.rag_app.tasks.ingesion_task import ingest_doc_task
+from app.rag.rag_app.services.ingestion import ingest_pdf
+from app.celery_app import celery_app
 
 
 

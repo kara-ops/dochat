@@ -14,19 +14,19 @@ from app.workspace_service.dependency import require_role
 
 from app.oauth.app.core.dependencies import get_current_user
 
-from app.rag.app.models.service import Document
-from app.rag.app.services.cache_service import get_cache,set_cache
-from app.rag.app.services.retrieval import retrieve_chunks
-from app.rag.app.services.llm_ans import generate_ans
-from app.rag.app.schemas.query_schema import QueryRequest
+from app.rag.rag_app.models.service import Document
+from app.rag.rag_app.services.cache_service import get_cache,set_cache
+from app.rag.rag_app.services.retrieval import retrieve_chunks
+from app.rag.rag_app.services.llm_ans import generate_ans
+from app.rag.rag_app.schemas.query_schema import QueryRequest
 
 router = APIRouter(prefix="/rag")
 
-@router.post("/query")
-async def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user),wk:WorkSpaceMember=Depends(require_role("member"))):
+@router.post("/query/{wk_id}")
+async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(get_db),current_user:User=Depends(get_current_user),wk:WorkSpaceMember=Depends(require_role("member"))):
     start = time.time()
     
-    cache_key = f"{current_user.id}:{req.document_id}:{req.question.strip().lower()}"
+    cache_key = f"{current_user["user"].id}:{req.document_id}:{req.question.strip().lower()}"
     cache_check = await get_cache(cache_key)
     if cache_check:
         return {"answer":cache_check,
@@ -34,27 +34,27 @@ async def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),curr
 
 
     #check if a user has that doc they asked for
-    query = await db.execute(select(Document).where(Document.id==req.document_id,Document.user_id==current_user.id))
+    query = await db.execute(select(Document).where(Document.id==req.document_id,Document.user_id==current_user["user"].id))
     document = query.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=403,detail="Document not found")
 
     #retrival of chunks
-    retrieve_context = await retrieve_chunks(current_user.id,req.document_id,req.question,db)
+    retrieve_context = await retrieve_chunks(wk_id,req.question,db)
     #No content found in the chunks
     if not retrieve_context:
         raise HTTPException(status_code=404,detail="No information found in the document")
     
 
-    def stream_and_cache():
+    async def stream_and_cache():
         full_ans = []
-        for token in generate_ans(req.question,retrieve_context):
+        async for token in generate_ans(req.question,retrieve_context):
             full_ans.append(token)
             yield token.encode("utf-8")
 
         latency = time.time() - start
         logger.info("query_completed",
-                user_id=current_user.id,
+                user_id=current_user["user"].id,
                 document_id=req.document_id,
                 question=req.question[:50],
                 letency_ms=round(latency*1000,2)
@@ -62,7 +62,7 @@ async def query(request:Request,req:QueryRequest,db:Session=Depends(get_db),curr
     
         try:
             final_ans="".join(full_ans)
-            set_cache(cache_key,final_ans)
+            await set_cache(cache_key,final_ans)
         except Exception as e:
             print("CACHE ERROR:",e)
 

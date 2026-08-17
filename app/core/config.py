@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings,SettingsConfigDict
 from functools import lru_cache
 
 class Settings(BaseSettings):
@@ -20,9 +20,11 @@ class Settings(BaseSettings):
     RESEND_API_KEY:str = "onboarding@resend.dev"
 
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file = ".env",
+        env_file_encoding = "utf-8",
+        extra="ignore"
+    )
 
 
 
