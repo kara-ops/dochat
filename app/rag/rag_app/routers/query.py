@@ -50,7 +50,7 @@ async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(ge
         full_ans = []
         async for token in generate_ans(req.question,retrieve_context):
             full_ans.append(token)
-            yield token.encode("utf-8")
+            yield token
 
         latency = time.time() - start
         logger.info("query_completed",
@@ -61,7 +61,7 @@ async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(ge
                 )
     
         try:
-            final_ans="".join(full_ans)
+            final_ans=b"".join(full_ans).decode("utf-8", errors="replace")
             await set_cache(cache_key,final_ans)
         except Exception as e:
             print("CACHE ERROR:",e)

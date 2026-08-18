@@ -25,7 +25,7 @@ class WorkSpaceAndMembers(BaseModel):
     name: str
     owner_id: int
     created_at: datetime
-    wk_member: list[WorkSpaceMemberRespond] 
+    wk_member: list[WorkSpaceMemberRespond] | None
     model_config = {"from_attributes": True}
 
 class WorkSpaceMemberRole(str,Enum):

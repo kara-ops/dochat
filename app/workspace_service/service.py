@@ -32,7 +32,7 @@ async def create_workspace(name:str,user_id:int,db:Session):
     return WorkSpaceRespond.model_validate(create)
 
 async def get_wk(db:Session,user_id:int):
-    query = await db.execute(select(WorkSpace).where(WorkSpace.owner_id == user_id).options(joinedload(WorkSpace.wk_member)))
+    query = await db.execute(select(WorkSpace).join(WorkSpaceMember,WorkSpaceMember.workspace_id==WorkSpace.id).where(WorkSpaceMember.user_id==user_id).options(joinedload(WorkSpace.wk_member)))
     check = query.unique().scalars().all()
     result = [
         WorkSpaceAndMembers.model_validate(workspace)

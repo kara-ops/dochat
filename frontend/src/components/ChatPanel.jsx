@@ -4,28 +4,25 @@ import { queryRagStream } from '../lib/api.jsx'
 import { useToast } from './ToastProvider.jsx'
 
 // ─── Stream parser ─────────────────────────────────────────────────────────────
-// Incrementally splits a growing raw string into { thinking, answer, state }
-// state: 'thinking' | 'answering' | 'done'
-function parseStream(raw) {
-  const thinkOpen = raw.indexOf('<think>')
-  const thinkClose = raw.indexOf('</think>')
+// The backend injects "__DOCCHAT_SEP__" exactly once at the </think> boundary.
+// Everything before it = thinking content (shown in collapsible block).
+// Everything after it  = clean answer (shown in main bubble).
+// This separator is emitted by backend code — the LLM never generates it.
+const SEPARATOR = '__DOCCHAT_SEP__'
 
-  if (thinkOpen === -1) {
-    // No thinking block at all — pure answer
-    return { thinking: '', answer: raw, phase: 'answering' }
+function parseStream(raw) {
+  const idx = raw.indexOf(SEPARATOR)
+
+  if (idx === -1) {
+    // Separator not yet received — still streaming thinking content
+    const thinking = raw.replace(/<\/?think>/g, '').trim()
+    return { thinking, answer: '', phase: 'thinking' }
   }
 
-  const thinkContent = thinkClose === -1
-    ? raw.slice(thinkOpen + 7)                       // still inside <think>
-    : raw.slice(thinkOpen + 7, thinkClose)
+  const thinking = raw.slice(0, idx).replace(/<\/?think>/g, '').trim()
+  const answer   = raw.slice(idx + SEPARATOR.length).trimStart()
 
-  const answerContent = thinkClose === -1
-    ? ''
-    : raw.slice(thinkClose + 8).trimStart()          // everything after </think>
-
-  const phase = thinkClose === -1 ? 'thinking' : 'answering'
-
-  return { thinking: thinkContent, answer: answerContent, phase }
+  return { thinking, answer, phase: 'answering' }
 }
 
 // ─── Thinking block component ──────────────────────────────────────────────────
