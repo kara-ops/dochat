@@ -3,11 +3,10 @@ from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 
 from app.core.database import get_db
+from app.core.config import settings
 
 from app.oauth.app.utils import oauth_client 
-
 from app.oauth.app.core import security 
-from app.core.config import settings
 from app.oauth.app.core.dependencies import get_current_user
 
 from datetime import datetime, timezone
@@ -45,7 +44,7 @@ async def google_callback(request:Request,res:Response,code:str, db:Session = De
         access_token = await oauth_client.exchange_code_for_token(code)
         print("access_token : ", access_token)
     except Exception as e:
-        raise
+        raise e
 
 
     

@@ -1,33 +1,39 @@
 # DocChat
 
-DocChat is a FastAPI-based document workspace and RAG application that lets users authenticate, create workspaces, upload files, and ask questions about uploaded documents. The backend combines PostgreSQL, Redis, Celery, and LLM-powered retrieval to provide document-aware chat over user-owned content.
+DocChat is a FastAPI-based document workspace and RAG application for authenticated users to create workspaces, upload files, organize documents, and query them using LLM-backed retrieval.
+
+The project combines:
+
+- FastAPI backend for auth, workspaces, and document APIs
+- PostgreSQL for relational metadata and workspace state
+- Redis for caching and rate limiting
+- Celery for async ingestion jobs
+- React + Vite frontend for the UI
+- Google OAuth and JWT-based session handling
 
 ## Overview
 
-This project is a multi-service application with:
+This application is designed for document-driven chat workflows. A user can:
 
-- FastAPI backend for auth, workspace management, file ingestion, and RAG queries
-- PostgreSQL for relational data and document metadata
-- Redis for caching and broker connectivity
-- Celery workers for asynchronous document processing
-- React + Vite frontend for the user interface
-- OAuth and JWT support for authentication
-
----
+1. Sign up or sign in
+2. Create a workspace
+3. Invite collaborators and assign roles
+4. Upload PDFs or other supported documents
+5. Trigger background ingestion
+6. Ask questions against the uploaded documents
+7. Receive answers grounded in retrieved document chunks
 
 ## Tech Stack
 
 - Python 3.11+
 - FastAPI
 - SQLAlchemy + async PostgreSQL
-- pgvector-ready PostgreSQL setup
 - Redis
 - Celery
-- Pydantic settings
-- React + Vite + Tailwind
-- Google / Groq LLM integrations
-
----
+- Pydantic Settings
+- React + Vite + Tailwind CSS
+- Google OAuth
+- Groq / Gemini LLM integration
 
 ## Project Structure
 
@@ -36,12 +42,16 @@ docchat/
 ├── .env.example
 ├── .env
 ├── alembic/
+│   ├── versions/
+│   ├── env.py
+│   └── script.py.mako
 ├── app/
 │   ├── core/
 │   │   ├── config.py
 │   │   ├── database.py
 │   │   └── logger.py
 │   ├── main.py
+│   ├── celery_app.py
 │   ├── oauth/
 │   │   └── app/
 │   │       ├── core/
@@ -50,49 +60,64 @@ docchat/
 │   │       ├── services/
 │   │       └── utils/
 │   ├── rag/
-│   │   ├── app/
+│   │   ├── rag_app/
 │   │   │   ├── models/
 │   │   │   ├── routers/
 │   │   │   ├── schemas/
 │   │   │   ├── services/
 │   │   │   └── tasks/
-│   │   ├── celery_app.py
-│   │   └── tests/
+│   │   ├── tests/
+│   │   └── temp/
 │   ├── ratelimiter/
+│   │   └── app/
 │   ├── user_service/
 │   ├── workspace_service/
 │   └── test.py
 ├── frontend/
 │   ├── package.json
-│   ├── public/
+│   ├── vite.config.js
+│   ├── postcss.config.cjs
+│   ├── tailwind.config.cjs
 │   └── src/
 ├── alembic.ini
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
 ├── README.md
-└── package-lock.json
+├── package-lock.json
+└── .gitignore
 ```
 
----
+## Key Features
 
-## Core Features
+- User authentication and refresh token flow
+- Workspace creation and access control
+- Invite and role-based membership management
+- File upload and asynchronous document ingestion
+- Retrieval-augmented generation over uploaded documents
+- Redis-backed caching and rate-limited auth endpoints
+- FastAPI docs available at `/docs`
+- React frontend for workspace and chat experiences
 
-- User authentication and authorization
-- Workspace creation and role-based access control
-- Invite and role management inside workspaces
-- PDF / document upload workflow
-- Background ingestion with Celery
-- Document question answering using retrieved context
-- Redis-based caching for repeated answers
-- FastAPI API endpoints and Swagger docs
-- Frontend client for workspace and chat workflows
+## Prerequisites
 
----
+Before starting the project, make sure you have:
 
-## Environment Variables
+- Python 3.11+
+- Node.js 18+
+- npm
+- Docker and Docker Compose
+- Redis and PostgreSQL available via Docker or local services
 
-Copy [.env.example](.env.example) to a local `.env` and fill in the values.
+## Environment Setup
+
+Create a local `.env` file from the example template:
+
+```bash
+cp .env.example .env
+```
+
+The environment variables used by the app include:
 
 ```env
 GEMINI_API_KEY=
@@ -114,55 +139,69 @@ RESEND_API_KEY=onboarding@resend.dev
 ```
 
 Notes:
-- `DATABASE_URL` should point to your Postgres instance
-- `REDIS_URL` is used by both the app and Celery
-- `SECRET_KEY` and `ALGORITHM` are required for JWT auth
-- `GOOGLE_*` values are used for Google OAuth flow if enabled
 
----
+- `DATABASE_URL` should point to your PostgreSQL database
+- `REDIS_URL` is used for caching and rate limiting
+- `SECRET_KEY` and `ALGORITHM` are required for JWT auth
+- `GOOGLE_*` values are used for Google OAuth login
 
 ## Local Development
 
-### 1) Install dependencies
+### 1) Create and activate a virtual environment
 
 ```bash
-cd Documents/docchat
+cd docchat
 python -m venv .venv
 .venv\Scripts\activate
+```
+
+On macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+### 2) Install Python dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2) Start supporting services
+### 3) Start supporting services with Docker
 
 ```bash
-docker compose up -d db redis
+docker compose up -d
 ```
 
-This starts:
-- PostgreSQL on `localhost:5433`
-- Redis on `localhost:6379`
+This project includes PostgreSQL and Redis in `docker-compose.yml`:
 
-### 3) Run the backend
+- PostgreSQL: `localhost:5433`
+- Redis: `localhost:6379`
+
+### 4) Run the backend
+
+From the project root:
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at:
-- http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
+Backend endpoints are available at:
 
-### 4) Run the Celery worker
+- API: `http://localhost:8000`
+- Swagger docs: `http://localhost:8000/docs`
 
-In a second terminal:
+### 5) Run the Celery worker
+
+Open a second terminal and run:
 
 ```bash
 celery -A app.rag.celery_app worker --loglevel=info
 ```
 
-This is needed for background document processing tasks.
+This worker handles asynchronous document ingestion and indexing work.
 
-### 5) Run the frontend
+### 6) Run the frontend
 
 ```bash
 cd frontend
@@ -170,18 +209,35 @@ npm install
 npm run dev
 ```
 
-The frontend is served by Vite, typically on:
-- http://localhost:5173
+The frontend is typically exposed at:
 
----
+- `http://localhost:5173`
 
-## Main API Areas
+## Authentication APIs
 
-### Authentication
+Authentication routes are defined under the `/auth` prefix.
 
-Routes are mounted from the OAuth app and include standard auth flows for users and sessions.
+### Common auth endpoints
 
-### Workspace Management
+```http
+GET /auth/oauth
+GET /auth/google/callback
+POST /auth/refresh
+POST /auth/logout
+POST /auth/login
+POST /auth/create-user
+PATCH /auth/reset-password
+POST /auth/forgot-password
+PATCH /auth/set-password
+POST /auth/add-password
+GET /auth/get-session
+```
+
+These endpoints cover Google login, local user registration, JWT refresh, password reset, and session retrieval.
+
+## Workspace APIs
+
+Workspace routes are mounted under `/rag`.
 
 ```http
 POST /rag/workspaces
@@ -191,33 +247,99 @@ POST /rag/workspace/{wk_id}/invite
 PATCH /rag/workspace/{wk_id}/{user_id}/role/{role}
 ```
 
-### Document Upload and Retrieval
+These endpoints manage workspace creation, membership, role updates, and invitations.
+
+## Document and RAG APIs
 
 ```http
 POST /rag/workspaces/{wk_id}/documents/upload
 GET /rag/task/{task_id}
 GET /rag/documents
+POST /rag/query/{wk_id}
 ```
 
-### RAG Query
+### Upload flow
 
-```http
-POST /rag/query
+- Client uploads a file to a workspace
+- The backend saves the file to the temp directory
+- Celery enqueues a processing job
+- The job ingests the document and prepares it for retrieval
+
+### Query flow
+
+- User sends a question with a workspace id
+- Relevant document chunks are retrieved
+- The LLM generates a response using the retrieved context
+- The answer is streamed back to the user
+
+## Rate Limiting
+
+The project includes a rate limiting module under `app/ratelimiter` for protecting endpoints, especially auth-related flows. It uses Redis-backed strategies such as:
+
+- Token bucket
+- Fixed window
+- Sliding window
+
+This helps prevent abuse and brute-force access patterns.
+
+## Database and Migrations
+
+The project uses Alembic for schema migrations.
+
+Typical commands:
+
+```bash
+alembic revision --autogenerate -m "describe migration"
+alembic upgrade head
 ```
 
-This endpoint accepts a document ID and a question, retrieves relevant context, and streams the answer back to the client.
+## Typical Workflow
 
----
+1. Create a user account or sign in
+2. Create a workspace
+3. Invite users or manage roles
+4. Upload a PDF or document
+5. Wait for ingestion to finish
+6. Ask a question in the workspace
+7. Receive a grounded answer using the document context
 
-## Sample Workflow
+## Troubleshooting
 
-1. Create a user account or sign in.
-2. Create a workspace.
-3. Invite collaborators or manage workspace roles.
-4. Upload a document to a workspace.
-5. Wait for the Celery ingestion task to finish.
-6. Ask a question against the document via `/rag/query`.
-7. Receive a grounded answer based on retrieved chunks.
+### Backend fails to start
+
+Check that:
+
+- `.env` exists and contains the required values
+- PostgreSQL is running
+- Redis is running
+- dependencies were installed with `pip install -r requirements.txt`
+
+### Celery task not processing
+
+Make sure the worker is running in a separate terminal:
+
+```bash
+celery -A app.rag.celery_app worker --loglevel=info
+```
+
+### Frontend does not load
+
+Verify that:
+
+- Node dependencies are installed with `npm install`
+- Vite is running in the frontend directory
+- the backend is reachable on port 8000
+
+## Notes
+
+- The application expects a valid `.env` configuration before startups.
+- File uploads are written to a temporary working directory and processed asynchronously.
+- The project is built for local development and can be extended for production deployment with stronger secrets, deployment configuration, and infra hardening.
+
+## License
+
+This project does not currently declare a license in the repository. If needed, add one before public distribution.
+
 
 ---
 

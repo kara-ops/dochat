@@ -13,7 +13,6 @@ async def exchange_code_for_token(code:str) -> str:
         }
        
         response = await client.post("https://oauth2.googleapis.com/token", data = payload)
-        print("google response:",response.json())
         response.raise_for_status()
         return response.json()["access_token"]
     
