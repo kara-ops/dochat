@@ -1,4 +1,4 @@
--- KEYS[1] = bucker name/key
+-- KEYS[1] = bucket name/key
 -- ARGV[1] = capacity of that bucket
 -- ARGV[2] = whats the refill rate per second
 -- ARGV[3] = current time

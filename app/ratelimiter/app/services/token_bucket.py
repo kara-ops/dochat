@@ -11,7 +11,7 @@ class TokenBucket:
 
     async def is_allowed(self, key:str, capacity:int, refill_rate:int):
         now = time.time()
-        result = await self._script(keys=[key],args=[now,capacity, refill_rate])
+        result = await self._script(keys=[key],args=[capacity, refill_rate,now])
         return result == 1
 
     
