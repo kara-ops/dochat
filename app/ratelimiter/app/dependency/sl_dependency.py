@@ -15,7 +15,7 @@ def  sliding_window_rate_limiter(window:int, limit:int,rate_limit_ep:str):
         else:
             ip = req.client.host
 
-        key = f"ratelimit:auth:sliding_window:{rate_limit_ep}:{ip}"
+        key = f"ratelimit:sliding_window:{rate_limit_ep}:{ip}"
 
         if not await limiter.is_allowed(key,window,limit,int(get_uuid())):
             raise HTTPException(status_code=429,detail="Too many request, try again later")

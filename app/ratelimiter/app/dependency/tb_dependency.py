@@ -15,7 +15,7 @@ def token_bucket_rate_limiter(capacity:int,refill_rate:int,rate_limit_ep:str):
         else:
             ip = req.client.host
 
-        key = f"ratelimiter:token_bucket:{rate_limit_ep}:{ip}"
+        key = f"ratelimit:token_bucket:{rate_limit_ep}:{ip}"
 
         if not await limiter.is_allowed(key,capacity,refill_rate):
             raise HTTPException(status_code=429,detail="Too many requests, try again later")

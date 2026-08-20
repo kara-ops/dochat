@@ -64,3 +64,4 @@ async def retrieve_chunks(wk_id:int,ques:str,db:AsyncSession,k:int=5)->list[str]
 
 
 
+

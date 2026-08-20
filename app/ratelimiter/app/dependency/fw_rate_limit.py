@@ -15,7 +15,7 @@ def fixed_window_rate_limiter(limit:int,ttl:int,rate_limit_ep:str,req:Request):
 
             redis = get_redis()
   
-            key = f"ratelimit:reads:{rate_limit_ep}:{ip}"
+            key = f"ratelimit:fixed_window:{rate_limit_ep}:{ip}"
 
 
             async with redis.pipeline(transaction=True) as pipe:

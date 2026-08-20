@@ -46,11 +46,11 @@ async def delete_wk(db:Session,wk_id:int,user_id:int):
     get = check.scalar_one_or_none()
 
     if not get:
-        raise HTTPException(status_code=404,detail="Workspace will be deleted")
+        raise HTTPException(status_code=404,detail="WorkSpace does not exist")
     
     if user_id != get.owner_id:
         raise HTTPException(
-            status_code=403,detail="you are not owner of this workspace"
+            status_code=403,detail="You are not owner of this WorkSpace"
         )
     try:
         await db.delete(get)
@@ -67,7 +67,7 @@ async def invite_user(db:Session,email:str,wk_id:int,role:str):# in future will 
     check = await db.execute(select(WorkSpace,User).where(WorkSpace.id==wk_id,User.email==email))
     query = check.first()
     if not query:
-        return "User will be Invited"
+        return "User does not exists"
 
     wk,user = query
     
@@ -102,7 +102,7 @@ async def promote_demote(db:Session,wk_id:int,user_id:int,role:str):
     get = check.scalar_one_or_none()
 
     if not get:
-        raise HTTPException(status_code=403,detail="User will be Promoted/Demoted")
+        raise HTTPException(status_code=403,detail="User does not exists")
     
     get.role = role
     db.add(get)

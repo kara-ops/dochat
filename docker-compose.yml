@@ -1,6 +1,6 @@
 services:
    db:
-     image: ankane/pgvector
+     image: paradedb/paradedb:latest
      container_name: pgvector
      environment:
       POSTGRES_USER: postgres
