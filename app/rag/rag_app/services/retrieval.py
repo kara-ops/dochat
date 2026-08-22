@@ -8,6 +8,8 @@ import json
 async def ques_embed(ques:str):
     return json.dumps((await embed_text([str(ques)]))[0])
 
+
+
 async def retrieve_chunks(wk_id:int,embed_ques:str,db:AsyncSession,k:int=5)->list[str]:
 
     query = text("SELECT chunks.id,chunks.content,chunks.chunk_index,documents.filename FROM chunks JOIN documents ON chunks.document_id=documents.id WHERE documents.workspace_id = :wk_id ORDER BY chunks.embedding <=> CAST(:vector AS vector) LIMIT :k")
@@ -16,7 +18,8 @@ async def retrieve_chunks(wk_id:int,embed_ques:str,db:AsyncSession,k:int=5)->lis
     real_chunks = [{"id":row.id,"filename":row.filename,"chunk_index":row.chunk_index,"content":row.content} for row in rows]
     return real_chunks
 
-async def hybrid_search(wk_id:int, embed_ques:str,ques:str, db:AsyncSession,top_n: int=5, k: int=20)->list[dict]:
+async def hybrid_search(wk_id:int,ques:str, db:AsyncSession,top_n: int=5, k: int=20)->list[dict]:
+    embed_ques = await ques_embed(ques)
     query = text("""
         WITH vector_results AS (
             SELECT 
@@ -61,8 +64,8 @@ async def hybrid_search(wk_id:int, embed_ques:str,ques:str, db:AsyncSession,top_
     """)
 
     res = await db.execute(query,{"wk_id":wk_id,"top_n":top_n,"k":k,"vector":embed_ques,"question":ques})
-    result = res.fetchall()
-    return result
+    rows = res.fetchall()
+    return [{"id":row.id,"content":row.content,"chunk_index":row.chunk_index,"filename":row.filename,"rrf_score":row.rrf_score} for row in rows]
     
 
     

@@ -16,7 +16,7 @@ from app.oauth.app.core.dependencies import get_current_user
 
 from app.rag.rag_app.models.service import Document
 from app.rag.rag_app.services.cache_service import get_cache,set_cache
-from app.rag.rag_app.services.retrieval import retrieve_chunks
+from app.rag.rag_app.services.retrieval import hybrid_search
 from app.rag.rag_app.services.llm_ans import generate_ans
 from app.rag.rag_app.schemas.query_schema import QueryRequest
 
@@ -40,7 +40,7 @@ async def query(wk_id:int,request:Request,req:QueryRequest,db:Session=Depends(ge
         raise HTTPException(status_code=403,detail="No Documents in this workspace")
 
     #retrival of chunks
-    retrieve_context = await retrieve_chunks(wk_id,req.question,db)
+    retrieve_context = await hybrid_search(wk_id,req.question,db)
     #No content found in the chunks
     if not retrieve_context:
         raise HTTPException(status_code=404,detail="No information found in the document")
