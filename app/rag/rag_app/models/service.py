@@ -22,7 +22,7 @@ class Chunk(Base):
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer,ForeignKey("documents.id"),nullable=False, index=True)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(768))
+    embedding = Column(Vector(1024))
     chunk_index = Column(Integer, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 

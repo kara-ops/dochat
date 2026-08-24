@@ -19,6 +19,8 @@ class Settings(BaseSettings):
 
     RESEND_API_KEY:str = "onboarding@resend.dev"
 
+    VOYGERAI_API_KEY:str
+
 
     model_config = SettingsConfigDict(
         env_file = ".env",

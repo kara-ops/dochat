@@ -19,20 +19,20 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    """Upgrade schema."""
-    op.execute("""CREATE INDEX chunks_bm25_index ON chunks
-    USING bm25 (id, content)
-    WITH (key_field=id,text_fields='{"content":{}}');
-    """)
-    op.execute("""CREATE INDEX chunks_hnsw_index ON chunks
-    USING hnsw (embedding vector_cosine_ops);
-    """)
-    pass
+# def upgrade() -> None:
+#     """Upgrade schema."""
+#     op.execute("""CREATE INDEX chunks_bm25_index ON chunks
+#     USING bm25 (id, content)
+#     WITH (key_field=id,text_fields='{"content":{}}');
+#     """)
+#     op.execute("""CREATE INDEX chunks_hnsw_index ON chunks
+#     USING hnsw (embedding vector_cosine_ops);
+#     """)
+#     pass
 
 
-def downgrade() -> None:
-    """Downgrade schema."""
-    op.execute("DROP INDEX IF EXISTS chunks_hnsw_index")
-    op.execute("DROP INDEX IF EXISTS chunks_bm25_index")
-    pass
+# def downgrade() -> None:
+#     """Downgrade schema."""
+#     op.execute("DROP INDEX IF EXISTS chunks_hnsw_index")
+#     op.execute("DROP INDEX IF EXISTS chunks_bm25_index")
+#     pass
