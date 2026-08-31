@@ -163,7 +163,7 @@ async def get_or_create_user(db:Session, google_user:dict,ip:str,user_agent:str)
         except:
             await db.rollback()
             raise
-        return {"user":UserModel.model_validate(user),
+        return {"user":UserBaseModel.model_validate(user),
                 "refresh":create_r,
                 "access": create_a
                 }

@@ -1,39 +1,132 @@
 # DocChat
 
-DocChat is a FastAPI-based document workspace and RAG application for authenticated users to create workspaces, upload files, organize documents, and query them using LLM-backed retrieval.
+DocChat is a FastAPI-based document workspace and RAG (Retrieval-Augmented Generation) application that enables authenticated users to create workspaces, upload documents, and perform high-precision queries powered by hybrid search and LLM reasoning.
 
-The project combines:
+The platform leverages **ParadeDB** (PostgreSQL with native BM25 full-text indexing and pgvector) along with **1024-dimensional embeddings** to deliver state-of-the-art hybrid retrieval (Dense Semantic + Sparse Keyword) via Reciprocal Rank Fusion (RRF).
 
-- FastAPI backend for auth, workspaces, and document APIs
-- PostgreSQL for relational metadata and workspace state
-- Redis for caching and rate limiting
-- Celery for async ingestion jobs
-- React + Vite frontend for the UI
-- Google OAuth and JWT-based session handling
+---
 
-## Overview
+## Key Highlights
 
-This application is designed for document-driven chat workflows. A user can:
+- **ParadeDB Engine**: Elasticsearch-grade full-text BM25 search native to PostgreSQL without needing an external search cluster.
+- **1024-Dimensional Vector Embeddings**: High-capacity embeddings generated via Voyage AI (`voyage-4-large`, 1024-dim) stored and indexed using `pgvector`.
+- **Hybrid Retrieval (RRF)**: Combines dense vector cosine similarity (HNSW) and sparse BM25 keyword matching using Reciprocal Rank Fusion ($k=60$) for optimal search accuracy.
+- **FastAPI Async Backend**: High-performance asynchronous API for auth, workspaces, document management, and streaming RAG responses.
+- **Asynchronous Ingestion**: Celery workers handle PDF processing, chunking, and batch embedding in the background.
+- **Enterprise-Ready Auth**: Google OAuth 2.0 and JWT authentication with Redis-backed rate limiting (Token Bucket, Sliding Window, Fixed Window).
+- **Modern UI**: Interactive React + Vite frontend with real-time streaming answers and reasoning step extraction.
 
-1. Sign up or sign in
-2. Create a workspace
-3. Invite collaborators and assign roles
-4. Upload PDFs or other supported documents
-5. Trigger background ingestion
-6. Ask questions against the uploaded documents
-7. Receive answers grounded in retrieved document chunks
+---
 
 ## Tech Stack
 
-- Python 3.11+
-- FastAPI
-- SQLAlchemy + async PostgreSQL
-- Redis
-- Celery
-- Pydantic Settings
-- React + Vite + Tailwind CSS
-- Google OAuth
-- Groq / Gemini LLM integration
+| Layer | Technology |
+|---|---|
+| **Backend Framework** | Python 3.11+, FastAPI, SQLAlchemy (asyncio), Pydantic Settings |
+| **Database & Search** | **ParadeDB** (`paradedb/paradedb:latest`) — PostgreSQL + BM25 (`pg_search`) + `pgvector` |
+| **Embeddings** | **Voyage AI** (`voyage-4-large` with **1024 output dimensions**) |
+| **Vector Indexing** | `pgvector` with **1024-dim** Vector column & **HNSW** index (`vector_cosine_ops`) |
+| **Text Indexing** | **ParadeDB BM25 Index** (`USING bm25 (id, content)`) |
+| **LLMs & Reasoning** | Groq (`qwen/qwen3.6-27b` with thinking extraction) / Google Gemini |
+| **Caching & Rate Limiting** | Redis 7 |
+| **Task Queue** | Celery (Redis broker/backend) |
+| **Frontend** | React 18, Vite, Tailwind CSS |
+| **Migrations** | Alembic |
+
+---
+
+## Architecture & Search Engine (ParadeDB & pgvector 1024)
+
+DocChat uses **ParadeDB** as its unified database and search engine. ParadeDB extends PostgreSQL to combine relational ACID compliance with Elasticsearch-grade BM25 keyword search and high-dimensional vector search.
+
+```
+                  ┌──────────────────────────────────────────────┐
+                  │                 User Query                   │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                 ┌───────────────────────┴───────────────────────┐
+                 │                                               │
+                 ▼                                               ▼
+       Dense Vector Branch                             Sparse Keyword Branch
+   (Voyage AI 1024-dim Embedding)                       (ParadeDB BM25 Search)
+                 │                                               │
+                 ▼                                               ▼
+       pgvector Cosine Search                         paradedb.match('content')
+   `chunks.embedding <=> :vector`                    `paradedb.score(chunks.id)`
+                 │                                               │
+                 └───────────────────────┬───────────────────────┘
+                                         │
+                                         ▼
+                        Reciprocal Rank Fusion (RRF)
+                 Score = 1/(60 + rank_vec) + 1/(60 + rank_bm25)
+                                         │
+                                         ▼
+                            Top-N Context Chunks
+                                         │
+                                         ▼
+                           LLM Answer Generation
+                      (Groq Qwen 3.6 / Gemini Stream)
+```
+
+### 1. Vector Dimension: 1024 Dimensions
+- Document chunks are embedded into **1024-dimensional vector space** using Voyage AI (`voyage-4-large`, `output_dimension=1024`).
+- Stored in the `chunks` table as `embedding Vector(1024)` via `pgvector.sqlalchemy`.
+- Fast approximate nearest neighbor search via **HNSW index**:
+  ```sql
+  CREATE INDEX chunks_hnsw_index ON chunks
+  USING hnsw (embedding vector_cosine_ops);
+  ```
+
+### 2. BM25 Full-Text Search via ParadeDB
+- ParadeDB provides true BM25 scoring directly inside PostgreSQL:
+  ```sql
+  CREATE INDEX chunks_bm25_index ON chunks
+  USING bm25 (id, content)
+  WITH (key_field=id, text_fields='{"content":{}}');
+  ```
+- Queries use native BM25 operators and scoring functions:
+  ```sql
+  WHERE chunks.id @@@ paradedb.match('content', :question)
+  ORDER BY paradedb.score(chunks.id) DESC
+  ```
+
+### 3. Hybrid Search via Reciprocal Rank Fusion (RRF)
+The retrieval engine combines vector and keyword results in a single SQL query using RRF scoring:
+```sql
+WITH vector_results AS (
+    SELECT chunks.id, chunks.content, chunks.chunk_index, documents.filename,
+           ROW_NUMBER() OVER (ORDER BY chunks.embedding <=> CAST(:vector AS vector)) AS rank
+    FROM chunks
+    JOIN documents ON chunks.document_id = documents.id
+    WHERE documents.workspace_id = :wk_id
+    LIMIT :k
+),
+bm25_results AS (
+    SELECT chunks.id, chunks.content, chunks.chunk_index, documents.filename,
+           ROW_NUMBER() OVER (ORDER BY paradedb.score(chunks.id) DESC) AS rank
+    FROM chunks
+    JOIN documents ON chunks.document_id = documents.id
+    WHERE chunks.id @@@ paradedb.match('content', :question)
+      AND documents.workspace_id = :wk_id
+    LIMIT :k
+),
+rrf AS (
+    SELECT 
+        COALESCE(v.id, b.id)                   AS id,
+        COALESCE(v.content, b.content)         AS content,
+        COALESCE(v.filename, b.filename)       AS filename,
+        COALESCE(v.chunk_index, b.chunk_index) AS chunk_index,
+        COALESCE(1.0 / (60 + v.rank), 0) + COALESCE(1.0 / (60 + b.rank), 0) AS rrf_score
+    FROM vector_results v 
+    FULL OUTER JOIN bm25_results b ON v.id = b.id
+)
+SELECT id, content, chunk_index, filename, rrf_score
+FROM rrf
+ORDER BY rrf_score DESC
+LIMIT :top_n;
+```
+
+---
 
 ## Project Structure
 
@@ -43,165 +136,155 @@ docchat/
 ├── .env
 ├── alembic/
 │   ├── versions/
+│   │   ├── f64bad4196bc_new_tables_formed.py
+│   │   ├── 6b275a83a19e_add_hnsw_index_and_bm25_on_chunks_.py
+│   │   └── b6059cc19a26_vector_1024.py
 │   ├── env.py
 │   └── script.py.mako
 ├── app/
 │   ├── core/
-│   │   ├── config.py
-│   │   ├── database.py
+│   │   ├── config.py             # App configuration & settings
+│   │   ├── database.py           # Async SQLAlchemy engine & session
 │   │   └── logger.py
-│   ├── main.py
-│   ├── celery_app.py
-│   ├── oauth/
-│   │   └── app/
-│   │       ├── core/
-│   │       ├── router/
-│   │       ├── schemas/
-│   │       ├── services/
-│   │       └── utils/
+│   ├── main.py                   # FastAPI application entrypoint
+│   ├── celery_app.py             # Celery worker configuration
+│   ├── oauth/                    # Auth, OAuth2 & user security
 │   ├── rag/
-│   │   ├── rag_app/
-│   │   │   ├── models/
-│   │   │   ├── routers/
-│   │   │   ├── schemas/
-│   │   │   ├── services/
-│   │   │   └── tasks/
-│   │   ├── tests/
-│   │   └── temp/
-│   ├── ratelimiter/
-│   │   └── app/
-│   ├── user_service/
-│   ├── workspace_service/
-│   └── test.py
-├── frontend/
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── postcss.config.cjs
-│   ├── tailwind.config.cjs
-│   └── src/
+│   │   └── rag_app/
+│   │       ├── models/service.py # Document & 1024-dim Chunk models
+│   │       ├── routers/          # RAG & workspace endpoints
+│   │       ├── schemas/          # Pydantic schemas
+│   │       ├── services/
+│   │       │   ├── embeddings.py # Voyage AI 1024-dim embeddings
+│   │       │   ├── retrieval.py  # ParadeDB BM25 + pgvector RRF hybrid search
+│   │       │   ├── llm_ans.py    # LLM response generation & stream parser
+│   │       │   ├── chunker.py    # Text chunking
+│   │       │   ├── ingestion.py  # Document ingestion pipeline
+│   │       │   └── cache_service.py
+│   │       └── tasks/            # Background Celery tasks
+│   ├── ratelimiter/              # Redis rate limiting algorithms
+│   ├── user_service/             # User management
+│   └── workspace_service/        # Workspaces and role management
+├── frontend/                     # React + Vite UI
 ├── alembic.ini
-├── docker-compose.yml
+├── docker-compose.yml            # ParadeDB & Redis containers
 ├── Dockerfile
-├── requirements.txt
-├── README.md
-├── package-lock.json
-└── .gitignore
+└── requirements.txt
 ```
 
-## Key Features
-
-- User authentication and refresh token flow
-- Workspace creation and access control
-- Invite and role-based membership management
-- File upload and asynchronous document ingestion
-- Retrieval-augmented generation over uploaded documents
-- Redis-backed caching and rate-limited auth endpoints
-- FastAPI docs available at `/docs`
-- React frontend for workspace and chat experiences
+---
 
 ## Prerequisites
 
-Before starting the project, make sure you have:
+- **Python 3.11+**
+- **Node.js 18+ & npm**
+- **Docker & Docker Compose** (for ParadeDB & Redis)
+- **API Keys**:
+  - [Voyage AI](https://www.voyageai.com/) (for 1024-dim embeddings)
+  - [Groq](https://console.groq.com/) or [Google Gemini](https://aistudio.google.com/) (for LLM generation)
+  - Google OAuth Credentials (for Google sign-in)
 
-- Python 3.11+
-- Node.js 18+
-- npm
-- Docker and Docker Compose
-- Redis and PostgreSQL available via Docker or local services
+---
 
-## Environment Setup
+## Environment Configuration
 
-Create a local `.env` file from the example template:
+Create a `.env` file in the root directory:
 
 ```bash
 cp .env.example .env
 ```
 
-The environment variables used by the app include:
+Configure the following variables in `.env`:
 
 ```env
-GEMINI_API_KEY=
-GROQ_API_KEY=
+# Database (ParadeDB PostgreSQL instance)
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/dochat
 
-DATABASE_URL=
-REDIS_URL=
+# Redis (Cache, Rate Limiter & Celery Broker)
+REDIS_URL=redis://localhost:6379/0
 
-SECRET_KEY=
-ALGORITHM=
-ACCESS_TOKEN_EXPIRE_MINUTES=
-REFRESH_TOKEN_EXPIRE_DAYS=
+# Embeddings (1024 Dimensions)
+VOYGERAI_API_KEY=your_voyage_ai_api_key
 
-GOOGLE_CLIENT_ID=
-GOOGLE_SECRET=
-GOOGLE_REDIRECT_URI=
+# LLM Providers
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 
+# JWT Authentication
+SECRET_KEY=your_jwt_secret_key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+
+# Email / Resend (Optional)
 RESEND_API_KEY=onboarding@resend.dev
 ```
 
-Notes:
+---
 
-- `DATABASE_URL` should point to your PostgreSQL database
-- `REDIS_URL` is used for caching and rate limiting
-- `SECRET_KEY` and `ALGORITHM` are required for JWT auth
-- `GOOGLE_*` values are used for Google OAuth login
+## Getting Started
 
-## Local Development
+### 1. Start ParadeDB and Redis Services
 
-### 1) Create and activate a virtual environment
-
-```bash
-cd docchat
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-On macOS/Linux:
-
-```bash
-source .venv/bin/activate
-```
-
-### 2) Install Python dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3) Start supporting services with Docker
+DocChat's `docker-compose.yml` configures **ParadeDB** (with `pgvector` & `pg_search` pre-installed) and **Redis**:
 
 ```bash
 docker compose up -d
 ```
 
-This project includes PostgreSQL and Redis in `docker-compose.yml`:
+Service mapping:
+- **ParadeDB (PostgreSQL 16 + BM25 + pgvector)**: `localhost:5433`
+- **Redis 7**: `localhost:6379`
 
-- PostgreSQL: `localhost:5433`
-- Redis: `localhost:6379`
+### 2. Set Up Python Environment
 
-### 4) Run the backend
+```bash
+# Create virtual environment
+python -m venv .venv
 
-From the project root:
+# Activate virtual environment
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+# Windows (cmd):
+.venv\Scripts\activate.bat
+# Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Run Database Migrations
+
+Apply Alembic migrations to configure tables, pgvector extension, and 1024-dim embedding columns:
+
+```bash
+alembic upgrade head
+```
+
+### 4. Run the FastAPI Backend
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend endpoints are available at:
+- API Base: `http://localhost:8000`
+- Interactive OpenAPI Docs: `http://localhost:8000/docs`
 
-- API: `http://localhost:8000`
-- Swagger docs: `http://localhost:8000/docs`
+### 5. Run the Celery Worker
 
-### 5) Run the Celery worker
-
-Open a second terminal and run:
+Open a separate terminal window, activate `.venv`, and start Celery for document processing:
 
 ```bash
 celery -A app.rag.celery_app worker --loglevel=info
 ```
 
-This worker handles asynchronous document ingestion and indexing work.
-
-### 6) Run the frontend
+### 6. Run the Frontend Application
 
 ```bash
 cd frontend
@@ -209,166 +292,72 @@ npm install
 npm run dev
 ```
 
-The frontend is typically exposed at:
+The frontend will be available at `http://localhost:5173`.
 
-- `http://localhost:5173`
+---
 
-## Authentication APIs
+## API Reference Overview
 
-Authentication routes are defined under the `/auth` prefix.
+### Authentication (`/auth`)
 
-### Common auth endpoints
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/auth/oauth` | Initiate Google OAuth flow |
+| `GET` | `/auth/google/callback` | Google OAuth callback handler |
+| `POST` | `/auth/create-user` | Register a new user |
+| `POST` | `/auth/login` | Login with username/password |
+| `POST` | `/auth/refresh` | Refresh access token using refresh token |
+| `POST` | `/auth/logout` | Invalidate current session |
+| `GET` | `/auth/get-session` | Retrieve active user session |
+| `POST` | `/auth/forgot-password` | Request password reset |
+| `PATCH` | `/auth/reset-password` | Complete password reset |
 
-```http
-GET /auth/oauth
-GET /auth/google/callback
-POST /auth/refresh
-POST /auth/logout
-POST /auth/login
-POST /auth/create-user
-PATCH /auth/reset-password
-POST /auth/forgot-password
-PATCH /auth/set-password
-POST /auth/add-password
-GET /auth/get-session
-```
+### Workspaces & Documents (`/rag`)
 
-These endpoints cover Google login, local user registration, JWT refresh, password reset, and session retrieval.
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/rag/workspaces` | Create a new document workspace |
+| `GET` | `/rag/myWorkspace` | List user workspaces |
+| `DELETE` | `/rag/workspace/{wk_id}` | Delete a workspace |
+| `POST` | `/rag/workspace/{wk_id}/invite` | Invite a collaborator to a workspace |
+| `PATCH` | `/rag/workspace/{wk_id}/{user_id}/role/{role}` | Update member role |
+| `POST` | `/rag/workspaces/{wk_id}/documents/upload` | Upload document (PDF) for async ingestion |
+| `GET` | `/rag/task/{task_id}` | Poll document ingestion status |
+| `GET` | `/rag/documents` | List documents in workspace |
+| `POST` | `/rag/query/{wk_id}` | Query workspace documents (Hybrid RRF + LLM Stream) |
 
-## Workspace APIs
+---
 
-Workspace routes are mounted under `/rag`.
+## Ingestion & Query Workflow
 
-```http
-POST /rag/workspaces
-GET /rag/myWorkspace
-DELETE /rag/workspace/{wk_id}
-POST /rag/workspace/{wk_id}/invite
-PATCH /rag/workspace/{wk_id}/{user_id}/role/{role}
-```
+1. **Document Upload**: User uploads document $\rightarrow$ saved to temporary staging $\rightarrow$ Celery job is dispatched.
+2. **Chunking & Embedding**: Celery worker chunks document text $\rightarrow$ generates **1024-dimensional embeddings** with Voyage AI $\rightarrow$ saves chunks with vectors and content to ParadeDB.
+3. **Indexing**: ParadeDB automatically indexes chunk content into the **BM25 index** and vector embeddings into the **HNSW index**.
+4. **Hybrid Query**:
+   - Query text is vectorized into a 1024-dim embedding.
+   - Vector similarity search (HNSW cosine distance) and BM25 full-text search are executed simultaneously.
+   - Reciprocal Rank Fusion merges both ranks into a single unified relevance score.
+5. **Streaming Response**: Top-$N$ chunks are formatted as context $\rightarrow$ streamed through LLM (with thinking process filtered or separated) $\rightarrow$ delivered to user with inline citations.
 
-These endpoints manage workspace creation, membership, role updates, and invitations.
-
-## Document and RAG APIs
-
-```http
-POST /rag/workspaces/{wk_id}/documents/upload
-GET /rag/task/{task_id}
-GET /rag/documents
-POST /rag/query/{wk_id}
-```
-
-### Upload flow
-
-- Client uploads a file to a workspace
-- The backend saves the file to the temp directory
-- Celery enqueues a processing job
-- The job ingests the document and prepares it for retrieval
-
-### Query flow
-
-- User sends a question with a workspace id
-- Relevant document chunks are retrieved
-- The LLM generates a response using the retrieved context
-- The answer is streamed back to the user
-
-## Rate Limiting
-
-The project includes a rate limiting module under `app/ratelimiter` for protecting endpoints, especially auth-related flows. It uses Redis-backed strategies such as:
-
-- Token bucket
-- Fixed window
-- Sliding window
-
-This helps prevent abuse and brute-force access patterns.
-
-## Database and Migrations
-
-The project uses Alembic for schema migrations.
-
-Typical commands:
-
-```bash
-alembic revision --autogenerate -m "describe migration"
-alembic upgrade head
-```
-
-## Typical Workflow
-
-1. Create a user account or sign in
-2. Create a workspace
-3. Invite users or manage roles
-4. Upload a PDF or document
-5. Wait for ingestion to finish
-6. Ask a question in the workspace
-7. Receive a grounded answer using the document context
+---
 
 ## Troubleshooting
 
-### Backend fails to start
+### Database Connection Issues
+- Ensure ParadeDB is running: `docker compose ps`
+- Confirm you are connecting to port `5433` (as mapped in `docker-compose.yml`), not standard `5432`.
+- Verify `DATABASE_URL` matches `postgresql+asyncpg://postgres:password@localhost:5433/dochat`.
 
-Check that:
+### Vector / Migration Errors
+- If recreating or upgrading vector columns, ensure the pgvector extension is active in ParadeDB (`CREATE EXTENSION IF NOT EXISTS vector;`).
+- Ensure embeddings generated by Voyage AI match the database dimension (`output_dimension=1024`).
 
-- `.env` exists and contains the required values
-- PostgreSQL is running
-- Redis is running
-- dependencies were installed with `pip install -r requirements.txt`
+### Celery Tasks Stalled
+- Check that Redis is running on port `6379`: `docker compose logs redis`.
+- Ensure the Celery worker process is active in a dedicated terminal: `celery -A app.rag.celery_app worker --loglevel=info`.
 
-### Celery task not processing
-
-Make sure the worker is running in a separate terminal:
-
-```bash
-celery -A app.rag.celery_app worker --loglevel=info
-```
-
-### Frontend does not load
-
-Verify that:
-
-- Node dependencies are installed with `npm install`
-- Vite is running in the frontend directory
-- the backend is reachable on port 8000
-
-## Notes
-
-- The application expects a valid `.env` configuration before startups.
-- File uploads are written to a temporary working directory and processed asynchronously.
-- The project is built for local development and can be extended for production deployment with stronger secrets, deployment configuration, and infra hardening.
+---
 
 ## License
 
-This project does not currently declare a license in the repository. If needed, add one before public distribution.
-
-
----
-
-## Notes
-
-- The project is structured as a monorepo-like Python app with a separate frontend directory.
-- The backend is modular, with auth, RAG, user, and workspace concerns split into different packages.
-- The application is still evolving, so some endpoints and integrations may vary depending on which services are active in your environment.
-
----
-
-## Useful Commands
-
-```bash
-# Start dependencies
-docker compose up -d db redis
-
-# Run app
-uvicorn app.main:app --reload
-
-# Run worker
-celery -A app.rag.celery_app worker --loglevel=info
-
-# Frontend
-cd frontend && npm run dev
-```
-
-If you want, I can also generate a more polished version with:
-- a separate "API reference" section for each endpoint
-- a production deployment section
-- a troubleshooting section
-- a contributor setup guide
+This project is licensed under the MIT License.
