@@ -2,7 +2,7 @@ import nltk
 nltk.download("punkt_tab", quiet=True)
 from nltk.tokenize import sent_tokenize
 
-
+#chunking will be improved 
 def chunk_text(text:str)->list[str]:
     text_into_sent = sent_tokenize(text)#whole block of text into array of sentences
     words_in_chunk = 0
